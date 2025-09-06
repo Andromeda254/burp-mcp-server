@@ -1,6 +1,7 @@
 package com.burp.mcp.protocol;
 
 import com.burp.mcp.model.McpMessage;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -19,10 +20,14 @@ import java.util.stream.Collectors;
 public class McpProtocolHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(McpProtocolHandler.class);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
     private final BurpIntegration burpIntegration;
     
     public McpProtocolHandler(BurpIntegration burpIntegration) {
+        // Configure ObjectMapper to exclude null values for minimal JSON responses
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        
         this.burpIntegration = burpIntegration;
     }
     

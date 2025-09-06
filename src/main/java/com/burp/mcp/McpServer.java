@@ -3,6 +3,7 @@ package com.burp.mcp;
 import com.burp.mcp.model.McpMessage;
 import com.burp.mcp.protocol.BurpIntegration;
 import com.burp.mcp.protocol.McpProtocolHandler;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -25,16 +26,24 @@ public class McpServer {
     private static final Logger logger = LoggerFactory.getLogger(McpServer.class);
     private static final int HTTP_PORT = 5001;
     
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
     private final McpProtocolHandler protocolHandler;
     private HttpServer httpServer;
     
     public McpServer() {
+        // Configure ObjectMapper to exclude null values for minimal JSON-RPC responses
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        
         var burpIntegration = new BurpIntegration();
         this.protocolHandler = new McpProtocolHandler(burpIntegration);
     }
     
     public McpServer(BurpIntegration burpIntegration) {
+        // Configure ObjectMapper to exclude null values for minimal JSON-RPC responses
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        
         this.protocolHandler = new McpProtocolHandler(burpIntegration);
     }
     
