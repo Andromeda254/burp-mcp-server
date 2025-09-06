@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'application'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'java-library'
 }
 
 group = 'com.burp.mcp'
@@ -11,6 +12,13 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
+    
+    // Enable preview features for cutting-edge Java 17+ capabilities
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    
+    withSourcesJar()
+    withJavadocJar()
 }
 
 repositories {
@@ -64,7 +72,9 @@ jar {
         attributes(
             'Main-Class': 'com.burp.mcp.McpServer',
             'Implementation-Title': project.name,
-            'Implementation-Version': project.version
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'BurpSuite MCP Server',
+            'Multi-Release': 'true'
         )
     }
 }
@@ -72,4 +82,48 @@ jar {
 shadowJar {
     archiveClassifier = 'all'
     mergeServiceFiles()
+    
+    // Optimize for both standalone and BurpSuite extension use
+    manifest {
+        attributes(
+            'Main-Class': 'com.burp.mcp.McpServer',
+            'Burp-Extension-Class': 'com.burp.mcp.BurpMcpExtension',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'BurpSuite MCP Server',
+            'Multi-Release': 'true',
+            'Automatic-Module-Name': 'burp.mcp.server'
+        )
+    }
+    
+    // Exclude unnecessary files to reduce JAR size
+    exclude('META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
 }
+
+// Task to create BurpSuite extension JAR
+task burpExtensionJar(type: Jar) {
+    archiveClassifier = 'burp-extension'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    from sourceSets.main.output
+    
+    // Include all dependencies
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    
+    manifest {
+        attributes(
+            'Burp-Extension-Class': 'com.burp.mcp.BurpMcpExtension',
+            'Implementation-Title': project.name + ' - BurpSuite Extension',
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'BurpSuite MCP Server',
+            'Automatic-Module-Name': 'burp.mcp.extension'
+        )
+    }
+    
+    exclude('META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+
+// Include burp extension JAR in build
+build.dependsOn burpExtensionJar

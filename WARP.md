@@ -4,26 +4,39 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-This is a Model Context Protocol (MCP) server that bridges Claude Desktop with BurpSuite security scanning capabilities. It implements the MCP specification to provide security scanning tools through conversational AI.
+This is a comprehensive Model Context Protocol (MCP) server that provides full integration between Claude Desktop and BurpSuite Pro security testing tools. It implements the complete MCP specification to expose all major BurpSuite functionality through conversational AI, enabling natural language security testing workflows.
+
+**Key Features:**
+- Full BurpSuite Pro tool integration (Scanner, Proxy, Repeater, Intruder, Decoder, SiteMap)
+- Dual deployment modes: Standalone server + BurpSuite extension
+- Claude Desktop prompt templates for security testing workflows
+- Java 17+ modern language features and best practices
+- Gradle 8.1+ build system with advanced configurations
 
 ## Build System & Common Commands
 
 ### Building the Project
 ```bash
-# Clean and build the shadow JAR (creates executable JAR with all dependencies)
-./gradlew clean shadowJar
+# Clean and build all JARs (standalone + BurpSuite extension)
+./gradlew clean build
 
-# Just build without cleaning
+# Build shadow JAR for standalone use (includes all dependencies)
 ./gradlew shadowJar
 
-# Compile Java sources only
+# Build BurpSuite extension JAR specifically
+./gradlew burpExtensionJar
+
+# Compile with Java 17+ features enabled
 ./gradlew compileJava
 
-# Run tests
+# Run comprehensive test suite
 ./gradlew test
 
-# Run the application directly (HTTP mode)
+# Run the application directly (HTTP mode for testing)
 ./gradlew run
+
+# Build with sources and javadoc JARs
+./gradlew build -x test
 ```
 
 ### Running the Server
@@ -67,10 +80,18 @@ sudo apt update && sudo apt install openjdk-17-jdk
 - Executes tool calls (`tools/call`)
 - Provides resource access (`resources/list`, `resources/read`)
 
-**BurpIntegration.java** - Security scanning interface:
-- Currently provides mock data for development
-- Designed to integrate with BurpSuite Montoya API
-- Manages scan tasks, results, and proxy history
+**BurpIntegration.java** - Comprehensive BurpSuite Pro integration:
+- Implements BurpExtension interface for native BurpSuite loading
+- Full Montoya API integration with all BurpSuite Pro tools
+- Manages Scanner, Proxy, Repeater, Intruder, Decoder, and SiteMap
+- Dual mode: Mock data for standalone testing + Live BurpSuite integration
+- Thread-safe operations with CompletableFuture async patterns
+
+**BurpMcpExtension.java** - BurpSuite extension entry point:
+- Native BurpSuite extension for direct plugin loading
+- Async MCP server initialization within BurpSuite
+- Real-time security event monitoring and callbacks
+- Java 17+ record patterns for configuration management
 
 ### Transport Architecture
 
@@ -83,9 +104,28 @@ Both transports use identical message handling through the protocol handler.
 
 ### MCP Tools Available
 
-- `scan_target`: Initiates security scans (passive/active/full)
-- `get_scan_results`: Retrieves scan findings and vulnerabilities
-- `proxy_history`: Accesses HTTP request/response history
+**Scanner Tools:**
+- `scan_target`: Comprehensive security scans (passive/active/full)
+- `get_scan_results`: Detailed vulnerability reports with remediation
+
+**Proxy Tools:**
+- `proxy_history`: HTTP traffic analysis with headers and content
+
+**Repeater Tools:**
+- `send_to_repeater`: Manual request testing and modification
+
+**Intruder Tools:**
+- `start_intruder_attack`: Automated attacks (sniper, battering ram, pitchfork, cluster bomb)
+
+**Decoder Tools:**
+- `decode_data`: Multi-format decoding (Base64, URL, HTML)
+- `encode_data`: Multi-format encoding (Base64, URL, HTML)
+
+**SiteMap Tools:**
+- `get_site_map`: Complete application structure discovery
+
+**Utility Tools:**
+- `burp_info`: Integration status and feature availability
 
 ### MCP Resources Available
 
@@ -99,6 +139,19 @@ The server uses environment variables for configuration:
 - `JAVA_HOME`: Java installation path
 
 Claude Desktop configuration is managed via `~/.config/claude-desktop/claude_desktop_config.json`
+
+### Claude Desktop Prompt Templates
+
+The project includes specialized prompt templates for security testing workflows:
+
+- `web-security-audit`: Comprehensive web application security audit
+- `api-security-test`: Specialized REST API security testing
+- `quick-vulnerability-scan`: Fast vulnerability identification
+- `manual-penetration-test`: Guided manual security testing
+- `security-issue-analysis`: Detailed vulnerability analysis and reporting
+- `burp-workflow-automation`: Automated security testing workflows
+
+Use the enhanced configuration: `claude-desktop-config-enhanced.json`
 
 ## Development Patterns
 

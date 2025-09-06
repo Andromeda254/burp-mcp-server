@@ -30,7 +30,11 @@ public class McpServer {
     private HttpServer httpServer;
     
     public McpServer() {
-        BurpIntegration burpIntegration = new BurpIntegration();
+        var burpIntegration = new BurpIntegration();
+        this.protocolHandler = new McpProtocolHandler(burpIntegration);
+    }
+    
+    public McpServer(BurpIntegration burpIntegration) {
         this.protocolHandler = new McpProtocolHandler(burpIntegration);
     }
     
@@ -99,16 +103,23 @@ public class McpServer {
     }
     
     /**
-     * Start HTTP server on localhost:5001
+     * Start HTTP server on localhost:5001 (default port)
      */
     public void startHttpServer() {
+        startHttpServer(HTTP_PORT);
+    }
+    
+    /**
+     * Start HTTP server on specified port
+     */
+    public void startHttpServer(int port) {
         try {
-            httpServer = HttpServer.create(new InetSocketAddress("localhost", HTTP_PORT), 0);
+            httpServer = HttpServer.create(new InetSocketAddress("localhost", port), 0);
             httpServer.createContext("/mcp", new McpHttpHandler());
             httpServer.setExecutor(Executors.newFixedThreadPool(4));
             
             httpServer.start();
-            logger.info("MCP HTTP server started on http://localhost:{}/mcp", HTTP_PORT);
+            logger.info("MCP HTTP server started on http://localhost:{}/mcp", port);
             
             // Keep the server running
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
@@ -123,15 +134,18 @@ public class McpServer {
             }
             
         } catch (IOException e) {
-            logger.error("Failed to start HTTP server", e);
+            logger.error("Failed to start HTTP server on port {}", port, e);
             System.exit(1);
         }
     }
     
-    private void shutdown() {
+    public void shutdown() {
         if (httpServer != null) {
             logger.info("Shutting down MCP server...");
             httpServer.stop(5);
+            synchronized (this) {
+                notifyAll(); // Wake up blocked main thread
+            }
         }
     }
     
