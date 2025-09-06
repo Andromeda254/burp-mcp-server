@@ -51,6 +51,7 @@ public class McpProtocolHandler {
         Map<String, Object> result = new HashMap<>();
         result.put("protocolVersion", "2024-11-05");
         
+        // Only declare tools and resources capabilities, omit prompts
         Map<String, Object> capabilities = new HashMap<>();
         capabilities.put("tools", Map.of("listChanged", true));
         capabilities.put("resources", Map.of("subscribe", true, "listChanged", true));
