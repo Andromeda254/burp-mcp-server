@@ -54,6 +54,7 @@ public class McpMessage {
     public McpError getError() { return error; }
     public void setError(McpError error) { this.error = error; }
     
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class McpError {
         @JsonProperty("code")
         private int code;
@@ -62,6 +63,7 @@ public class McpMessage {
         private String message;
         
         @JsonProperty("data")
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private Object data;
         
         public McpError() {}
@@ -69,6 +71,7 @@ public class McpMessage {
         public McpError(int code, String message) {
             this.code = code;
             this.message = message;
+            // Don't set data field - leave it null so it won't be serialized
         }
         
         // Getters and setters

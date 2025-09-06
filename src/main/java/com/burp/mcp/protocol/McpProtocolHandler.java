@@ -679,24 +679,17 @@ public class McpProtocolHandler {
     }
     
     /**
-     * Create a proper JSON-RPC error response for unsupported methods
+     * Create a minimal JSON-RPC error response for unsupported methods
+     * Returns: {"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"Method not found: prompts/list"}}
      */
     private McpMessage createMethodNotFoundError(Object requestId, String methodName) {
         logger.warn("Method not supported: {}", methodName);
         
-        // Using ObjectNode approach as requested for explicit unsupported methods
-        ObjectNode errorResponse = objectMapper.createObjectNode();
-        errorResponse.put("jsonrpc", "2.0");
-        errorResponse.put("id", requestId != null ? requestId.toString() : null);
-        
-        ObjectNode error = errorResponse.putObject("error");
-        error.put("code", -32601);
-        error.put("message", "Method not found: " + methodName);
-        
-        // Convert ObjectNode back to McpMessage for consistency
+        // Create minimal JSON error object - no 'data' field due to @JsonInclude(NON_NULL)
         McpMessage response = new McpMessage();
         response.setId(requestId);
         response.setError(new McpMessage.McpError(-32601, "Method not found: " + methodName));
+        
         return response;
     }
     
