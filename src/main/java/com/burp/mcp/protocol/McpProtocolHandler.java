@@ -3,6 +3,7 @@ package com.burp.mcp.protocol;
 import com.burp.mcp.model.McpMessage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,11 @@ public class McpProtocolHandler {
     public McpMessage handleRequest(McpMessage request) {
         if (request.getMethod() == null) {
             return createErrorResponse(request.getId(), -32600, "Invalid Request");
+        }
+        
+        // Handle explicitly unsupported methods with proper error responses
+        if (isUnsupportedMethod(request.getMethod())) {
+            return createMethodNotFoundError(request.getId(), request.getMethod());
         }
         
         try {
@@ -660,6 +666,38 @@ public class McpProtocolHandler {
         }
         
         return sb.toString();
+    }
+    
+    /**
+     * Check if the method is explicitly unsupported (e.g., prompts/list)
+     */
+    private boolean isUnsupportedMethod(String method) {
+        return switch (method) {
+            case "prompts/list", "prompts/get" -> true;
+            default -> false;
+        };
+    }
+    
+    /**
+     * Create a proper JSON-RPC error response for unsupported methods
+     */
+    private McpMessage createMethodNotFoundError(Object requestId, String methodName) {
+        logger.warn("Method not supported: {}", methodName);
+        
+        // Using ObjectNode approach as requested for explicit unsupported methods
+        ObjectNode errorResponse = objectMapper.createObjectNode();
+        errorResponse.put("jsonrpc", "2.0");
+        errorResponse.put("id", requestId != null ? requestId.toString() : null);
+        
+        ObjectNode error = errorResponse.putObject("error");
+        error.put("code", -32601);
+        error.put("message", "Method not found: " + methodName);
+        
+        // Convert ObjectNode back to McpMessage for consistency
+        McpMessage response = new McpMessage();
+        response.setId(requestId);
+        response.setError(new McpMessage.McpError(-32601, "Method not found: " + methodName));
+        return response;
     }
     
     private McpMessage createSuccessResponse(Object id, Object result) {
