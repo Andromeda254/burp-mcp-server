@@ -1,0 +1,52 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+
+# Node modules (if any JS tooling is used)
+node_modules/
+
+# Temporary files
+tmp/
+temp/
+
+# Local JAR files
+libs/*.jar
+!libs/README.md

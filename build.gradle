@@ -1,0 +1,75 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'com.burp.mcp'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+    // Local libs directory for JAR files
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    // BurpSuite Montoya API from local JAR file
+    implementation files('libs/montoya-api.jar')
+    
+    // JSON processing for MCP protocol
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.3'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.3'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.3'
+    
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+    
+    // HTTP server for MCP
+    implementation 'com.sun.net.httpserver:http:20070405'
+    
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testImplementation 'org.mockito:mockito-core:5.6.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.6.0'
+}
+
+application {
+    mainClass = 'com.burp.mcp.McpServer'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.addAll([
+        '-Xlint:deprecation',
+        '-Xlint:unchecked'
+    ])
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'com.burp.mcp.McpServer',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+shadowJar {
+    archiveClassifier = 'all'
+    mergeServiceFiles()
+}

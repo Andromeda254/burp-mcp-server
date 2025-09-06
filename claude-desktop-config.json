@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "burp-mcp-server": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "/home/jojo/dev/burp-mcp-server/build/libs/burp-mcp-server-1.0.0-all.jar",
+        "--stdio"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64",
+        "BURP_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
