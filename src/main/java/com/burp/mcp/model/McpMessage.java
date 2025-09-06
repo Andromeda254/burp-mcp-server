@@ -6,25 +6,29 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Base MCP message following JSON-RPC 2.0 specification
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class McpMessage {
     
     @JsonProperty("jsonrpc")
     private String jsonrpc = "2.0";
     
     @JsonProperty("id")
+    @JsonInclude(JsonInclude.Include.ALWAYS) // Always include id for JSON-RPC 2.0 compliance
     private Object id;
     
     @JsonProperty("method")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String method;
     
     @JsonProperty("params")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Object params;
     
     @JsonProperty("result")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Object result;
     
     @JsonProperty("error")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private McpError error;
     
     public McpMessage() {}
