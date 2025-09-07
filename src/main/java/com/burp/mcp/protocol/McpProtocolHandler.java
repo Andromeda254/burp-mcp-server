@@ -591,10 +591,8 @@ public class McpProtocolHandler {
         
         // Create minimal JSON error object - no 'data' field due to @JsonInclude(NON_NULL)
         McpMessage response = new McpMessage();
-        // Only set ID if it's not null (for proper JSON-RPC compliance)
-        if (requestId != null) {
-            response.setId(requestId);
-        }
+        // Claude Desktop requires ID field - use 0 if null
+        response.setId(requestId != null ? requestId : 0);
         response.setError(new McpMessage.McpError(-32601, "Method not found: " + methodName));
         
         return response;
@@ -602,18 +600,14 @@ public class McpProtocolHandler {
     
     private McpMessage createSuccessResponse(Object id, Object result) {
         McpMessage response = new McpMessage();
-        if (id != null) {
-            response.setId(id);
-        }
+        response.setId(id != null ? id : 0);
         response.setResult(result);
         return response;
     }
     
     private McpMessage createErrorResponse(Object id, int code, String message) {
         McpMessage response = new McpMessage();
-        if (id != null) {
-            response.setId(id);
-        }
+        response.setId(id != null ? id : 0);
         response.setError(new McpMessage.McpError(code, message));
         return response;
     }

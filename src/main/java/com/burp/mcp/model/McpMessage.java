@@ -12,7 +12,7 @@ public class McpMessage {
     private String jsonrpc = "2.0";
     
     @JsonProperty("id")
-    @JsonInclude(JsonInclude.Include.NON_NULL) // Include id only if not null for proper compliance
+    @JsonInclude(JsonInclude.Include.ALWAYS) // Claude Desktop requires id field always present
     private Object id;
     
     @JsonProperty("method")
