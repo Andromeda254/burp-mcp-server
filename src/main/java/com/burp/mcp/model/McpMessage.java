@@ -12,7 +12,7 @@ public class McpMessage {
     private String jsonrpc = "2.0";
     
     @JsonProperty("id")
-    @JsonInclude(JsonInclude.Include.ALWAYS) // Always include id for JSON-RPC 2.0 compliance
+    @JsonInclude(JsonInclude.Include.NON_NULL) // Include id only if not null for proper compliance
     private Object id;
     
     @JsonProperty("method")

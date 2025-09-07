@@ -591,7 +591,10 @@ public class McpProtocolHandler {
         
         // Create minimal JSON error object - no 'data' field due to @JsonInclude(NON_NULL)
         McpMessage response = new McpMessage();
-        response.setId(requestId);
+        // Only set ID if it's not null (for proper JSON-RPC compliance)
+        if (requestId != null) {
+            response.setId(requestId);
+        }
         response.setError(new McpMessage.McpError(-32601, "Method not found: " + methodName));
         
         return response;
@@ -599,14 +602,18 @@ public class McpProtocolHandler {
     
     private McpMessage createSuccessResponse(Object id, Object result) {
         McpMessage response = new McpMessage();
-        response.setId(id);
+        if (id != null) {
+            response.setId(id);
+        }
         response.setResult(result);
         return response;
     }
     
     private McpMessage createErrorResponse(Object id, int code, String message) {
         McpMessage response = new McpMessage();
-        response.setId(id);
+        if (id != null) {
+            response.setId(id);
+        }
         response.setError(new McpMessage.McpError(code, message));
         return response;
     }
