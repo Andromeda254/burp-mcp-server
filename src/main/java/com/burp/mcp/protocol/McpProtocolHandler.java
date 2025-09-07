@@ -78,125 +78,27 @@ public class McpProtocolHandler {
     
     private McpMessage handleToolsList(McpMessage request) {
         List<Map<String, Object>> tools = List.of(
-            // SCANNER TOOLS
-            Map.of(
-                "name", "scan_target",
-                "description", "Initiate a comprehensive security scan on a target URL using BurpSuite Scanner",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "url", Map.of("type", "string", "description", "Target URL to scan"),
-                        "scanType", Map.of("type", "string", 
-                            "enum", List.of("passive", "active", "full"),
-                            "description", "Type of scan: passive (safe), active (intrusive), full (crawl+audit)")
-                    ),
-                    "required", List.of("url")
-                )
-            ),
-            Map.of(
-                "name", "get_scan_results",
-                "description", "Retrieve detailed results from security scans including vulnerabilities and findings",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "taskId", Map.of("type", "string", "description", "Specific scan task ID (optional)")
-                    )
-                )
-            ),
-            
-            // PROXY TOOLS
-            Map.of(
-                "name", "proxy_history",
-                "description", "Get HTTP request/response history from BurpSuite Proxy with detailed headers and content",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "limit", Map.of("type", "integer", "description", "Maximum number of entries (default: 100)"),
-                        "filter", Map.of("type", "string", "description", "URL filter pattern to match specific requests")
-                    )
-                )
-            ),
-            
-            // REPEATER TOOLS
-            Map.of(
-                "name", "send_to_repeater",
-                "description", "Send an HTTP request to BurpSuite Repeater for manual testing and analysis",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "url", Map.of("type", "string", "description", "Target URL"),
-                        "method", Map.of("type", "string", "enum", List.of("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"), "description", "HTTP method"),
-                        "body", Map.of("type", "string", "description", "Request body content (optional)"),
-                        "headers", Map.of("type", "object", "description", "Additional headers as key-value pairs (optional)")
-                    ),
-                    "required", List.of("url", "method")
-                )
-            ),
-            
-            // INTRUDER TOOLS
-            Map.of(
-                "name", "start_intruder_attack",
-                "description", "Launch an automated attack using BurpSuite Intruder with custom payloads",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "url", Map.of("type", "string", "description", "Target URL"),
-                        "method", Map.of("type", "string", "enum", List.of("GET", "POST", "PUT", "DELETE"), "description", "HTTP method"),
-                        "body", Map.of("type", "string", "description", "Request body with payload positions marked"),
-                        "headers", Map.of("type", "object", "description", "HTTP headers as key-value pairs"),
-                        "payloadPositions", Map.of("type", "array", "items", Map.of("type", "string"), "description", "Positions where payloads will be inserted"),
-                        "payloads", Map.of("type", "array", "items", Map.of("type", "string"), "description", "List of payloads to use in the attack"),
-                        "attackType", Map.of("type", "string", "enum", List.of("sniper", "battering_ram", "pitchfork", "cluster_bomb"), "description", "Intruder attack type")
-                    ),
-                    "required", List.of("url", "method", "payloads", "attackType")
-                )
-            ),
-            
-            // DECODER TOOLS
-            Map.of(
-                "name", "decode_data",
-                "description", "Decode data using various encoding schemes (Base64, URL, HTML)",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "data", Map.of("type", "string", "description", "Data to decode"),
-                        "encoding", Map.of("type", "string", "enum", List.of("base64", "url", "html"), "description", "Encoding scheme to use")
-                    ),
-                    "required", List.of("data", "encoding")
-                )
-            ),
-            Map.of(
-                "name", "encode_data",
-                "description", "Encode data using various encoding schemes (Base64, URL, HTML)",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "data", Map.of("type", "string", "description", "Data to encode"),
-                        "encoding", Map.of("type", "string", "enum", List.of("base64", "url", "html"), "description", "Encoding scheme to use")
-                    ),
-                    "required", List.of("data", "encoding")
-                )
-            ),
-            
-            // SITEMAP TOOLS
-            Map.of(
-                "name", "get_site_map",
-                "description", "Retrieve the complete site map from BurpSuite showing all discovered URLs and endpoints",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "urlFilter", Map.of("type", "string", "description", "Filter results by URL pattern (optional)")
-                    )
-                )
-            ),
-            
-            // UTILITY TOOLS
+            // MINIMAL TEST - Just 2 basic tools to debug schema issues
             Map.of(
                 "name", "burp_info",
                 "description", "Get information about the BurpSuite connection and current status",
                 "inputSchema", Map.of(
                     "type", "object",
                     "properties", Map.of()
+                )
+            ),
+            Map.of(
+                "name", "scan_target",
+                "description", "Initiate a security scan on a target URL",
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "url", Map.of(
+                            "type", "string", 
+                            "description", "Target URL to scan"
+                        )
+                    ),
+                    "required", List.of("url")
                 )
             )
         );
@@ -210,27 +112,8 @@ public class McpProtocolHandler {
         var arguments = params.get("arguments");
         
         return switch (toolName) {
-            // Scanner tools
+            // Only 2 basic tools for debugging
             case "scan_target" -> handleScanTarget(request.getId(), arguments);
-            case "get_scan_results" -> handleGetScanResults(request.getId(), arguments);
-            
-            // Proxy tools
-            case "proxy_history" -> handleProxyHistory(request.getId(), arguments);
-            
-            // Repeater tools
-            case "send_to_repeater" -> handleSendToRepeater(request.getId(), arguments);
-            
-            // Intruder tools
-            case "start_intruder_attack" -> handleStartIntruderAttack(request.getId(), arguments);
-            
-            // Decoder tools
-            case "decode_data" -> handleDecodeData(request.getId(), arguments);
-            case "encode_data" -> handleEncodeData(request.getId(), arguments);
-            
-            // Sitemap tools
-            case "get_site_map" -> handleGetSiteMap(request.getId(), arguments);
-            
-            // Utility tools
             case "burp_info" -> handleBurpInfo(request.getId(), arguments);
             
             default -> createErrorResponse(request.getId(), -32602, 
@@ -242,17 +125,15 @@ public class McpProtocolHandler {
     
     private McpMessage handleScanTarget(Object id, JsonNode arguments) {
         var url = arguments.get("url").asText();
-        var scanType = arguments.has("scanType") ? 
-            arguments.get("scanType").asText() : "passive";
+        var scanType = "passive"; // Default to passive scan
         
         try {
             var taskId = burpIntegration.startScan(url, scanType);
             var responseText = """
-                Started %s scan for %s.
+                Started passive scan for %s.
                 Task ID: %s
                 The scan will analyze the target for security vulnerabilities.
-                Use 'get_scan_results' with this task ID to retrieve findings.
-                """.formatted(scanType, url, taskId);
+                """.formatted(url, taskId);
             
             return createSuccessResponse(id, Map.of(
                 "content", List.of(Map.of(
