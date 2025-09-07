@@ -3,76 +3,65 @@
     "burp-mcp-server": {
       "command": "java",
       "args": [
-        "-jar",
+        "-jar", 
         "/home/jojo/dev/burp-mcp-server/build/libs/burp-mcp-server-1.0.0-all.jar",
-        "--stdio"
+        "stdio"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64",
         "BURP_MCP_LOG_LEVEL": "INFO"
       }
     }
   },
   "prompts": [
     {
-      "name": "web-security-audit",
-      "description": "Perform a comprehensive web application security audit",
+      "name": "comprehensive-web-security-audit",
+      "description": "Comprehensive web application security audit using all BurpSuite tools",
       "arguments": [
         {
           "name": "target_url",
-          "description": "The target web application URL to audit",
+          "description": "Target web application URL",
           "required": true
         },
         {
-          "name": "scan_type",
-          "description": "Type of scan: passive, active, or full",
-          "required": false
-        },
-        {
-          "name": "focus_areas",
-          "description": "Specific security areas to focus on (e.g., OWASP Top 10, API security, authentication)",
+          "name": "scan_depth",
+          "description": "Scan depth level",
           "required": false
         }
       ],
-      "template": "I need you to perform a comprehensive security audit of {{target_url}}.\n\nPlease follow this systematic approach:\n\n1. **Initial Reconnaissance**\n   - Get basic information about the target using burp_info\n   - Start with a {{scan_type || 'passive'}} scan to identify the attack surface\n\n2. **Vulnerability Assessment**\n   - Analyze the scan results for security issues\n   - Focus on {{focus_areas || 'OWASP Top 10 vulnerabilities'}}\n   - Use the site map to understand the application structure\n\n3. **Manual Testing**\n   - Send interesting requests to Repeater for manual analysis\n   - Use Intruder for targeted attacks on suspicious parameters\n   - Test authentication and authorization mechanisms\n\n4. **Reporting**\n   - Summarize all findings with severity levels\n   - Provide remediation recommendations\n   - Include evidence from BurpSuite (requests/responses)\n\nPlease start the audit and guide me through each step with detailed explanations."
+      "template": "I need to perform a comprehensive security audit on {{target_url}}{{#scan_depth}} with {{scan_depth}} scan depth{{/scan_depth}}. Please help me:\n\n1. **Initial Reconnaissance**\n   - Get BurpSuite connection status and available features\n   - Retrieve the site map to understand the application structure\n   - Analyze proxy history for any existing traffic patterns\n\n2. **Vulnerability Scanning**\n   - Start with a passive scan to identify low-risk issues\n   - Escalate to active scanning for comprehensive vulnerability detection\n   - Retrieve and analyze all scan results with detailed findings\n\n3. **Manual Security Testing**\n   - Set up custom requests in Repeater for manual testing\n   - Identify key endpoints for injection testing\n   - Test authentication and session management\n\n4. **Automated Attack Testing**\n   - Configure Intruder attacks for parameter fuzzing\n   - Test for common injection vulnerabilities\n   - Perform brute force attacks on login mechanisms\n\n5. **Data Analysis & Encoding**\n   - Decode suspicious parameters and payloads found\n   - Encode custom payloads for bypass techniques\n   - Analyze encrypted or encoded data structures\n\n6. **Reporting & Documentation**\n   - Compile comprehensive vulnerability report\n   - Prioritize findings by severity and exploitability\n   - Provide detailed remediation recommendations\n\nPlease execute this audit systematically and provide detailed analysis at each step."
     },
     {
-      "name": "api-security-test",
-      "description": "Specialized security testing for REST APIs",
+      "name": "api-security-testing",
+      "description": "Specialized REST API security testing workflow",
       "arguments": [
         {
           "name": "api_base_url",
-          "description": "Base URL of the API to test",
+          "description": "Base URL of the REST API",
           "required": true
         },
         {
-          "name": "auth_method",
-          "description": "API authentication method (Bearer token, API key, etc.)",
-          "required": false
-        },
-        {
-          "name": "endpoints",
+          "name": "api_endpoints",
           "description": "Specific API endpoints to test (comma-separated)",
           "required": false
         }
       ],
-      "template": "Let's perform specialized security testing for the API at {{api_base_url}}.\n\n**API Security Testing Plan:**\n\n1. **Discovery & Enumeration**\n   - Scan the API to discover all endpoints\n   - Map the API structure using the site map\n   - Identify {{auth_method || 'authentication mechanisms'}}\n\n2. **OWASP API Security Top 10 Testing**\n   - Test for broken authentication and authorization\n   - Check for excessive data exposure\n   - Verify rate limiting and resource management\n   - Test input validation and injection vulnerabilities\n\n3. **Specific Endpoint Testing**\n   {{#if endpoints}}Focus on these endpoints: {{endpoints}}{{else}}Test all discovered endpoints systematically{{/if}}\n   - Send malformed requests to test error handling\n   - Use Intruder for parameter fuzzing\n   - Test different HTTP methods (GET, POST, PUT, DELETE, PATCH)\n\n4. **Business Logic Testing**\n   - Test API workflow bypasses\n   - Check for privilege escalation opportunities\n   - Verify data validation across different endpoints\n\nStart by scanning the API and then guide me through systematic testing of each security aspect."
+      "template": "I need to perform specialized security testing on the REST API at {{api_base_url}}{{#api_endpoints}} focusing on endpoints: {{api_endpoints}}{{/api_endpoints}}. Please help me:\n\n1. **API Discovery & Mapping**\n   - Map the API structure using site mapping\n   - Identify all available endpoints and methods\n   - Analyze API documentation or schema if available\n\n2. **Authentication & Authorization Testing**\n   - Test authentication mechanisms (JWT, OAuth, API keys)\n   - Verify proper access controls between different user roles\n   - Test for privilege escalation vulnerabilities\n\n3. **Input Validation Testing**\n   - Test JSON/XML injection vulnerabilities\n   - Verify parameter pollution and type confusion issues\n   - Test file upload functionality if present\n\n4. **Business Logic Testing**\n   - Test rate limiting and throttling mechanisms\n   - Verify proper handling of edge cases and error conditions\n   - Test for IDOR (Insecure Direct Object Reference) vulnerabilities\n\n5. **Automated API Fuzzing**\n   - Use Intruder for automated parameter fuzzing\n   - Test different HTTP methods on each endpoint\n   - Fuzz headers, query parameters, and request bodies\n\n6. **Data Encoding & Payload Testing**\n   - Test various encoding methods (base64, URL, HTML)\n   - Craft custom payloads for specific API vulnerabilities\n   - Test for injection through encoded parameters\n\nPlease conduct this API security assessment systematically with detailed findings."
     },
     {
       "name": "quick-vulnerability-scan",
-      "description": "Quick security scan for immediate vulnerability identification",
+      "description": "Quick security vulnerability scan for immediate assessment",
       "arguments": [
         {
-          "name": "target",
-          "description": "Target URL or domain to scan",
+          "name": "target_url",
+          "description": "Target URL to scan",
           "required": true
         }
       ],
-      "template": "Perform a quick security scan of {{target}} and give me immediate results.\n\nPlease:\n1. Start a passive scan for safe, non-intrusive testing\n2. Show me the results as soon as they're available\n3. Highlight any HIGH or CRITICAL severity issues\n4. Provide a summary of the security posture\n\nI need results quickly, so focus on the most common and critical vulnerabilities first."
+      "template": "I need a quick security assessment of {{target_url}}. Please help me:\n\n1. **Rapid Assessment**\n   - Start an active security scan immediately\n   - Check site map for obvious security issues\n   - Review any existing proxy traffic\n\n2. **Immediate Findings**\n   - Retrieve scan results as soon as available\n   - Identify critical and high-severity vulnerabilities\n   - Highlight any easily exploitable issues\n\n3. **Quick Manual Verification**\n   - Send key requests to Repeater for manual verification\n   - Test most critical findings manually\n   - Verify false positives\n\n4. **Priority Report**\n   - List vulnerabilities by risk level\n   - Provide immediate remediation steps for critical issues\n   - Suggest next steps for comprehensive testing\n\nPlease prioritize speed while maintaining accuracy in this assessment."
     },
     {
-      "name": "manual-penetration-test",
-      "description": "Guide manual penetration testing with BurpSuite tools",
+      "name": "manual-penetration-testing",
+      "description": "Guided manual penetration testing with tool assistance",
       "arguments": [
         {
           "name": "target_url",
@@ -80,47 +69,58 @@
           "required": true
         },
         {
-          "name": "test_scenarios",
-          "description": "Specific test scenarios or attack vectors to focus on",
+          "name": "focus_areas",
+          "description": "Specific areas to focus testing (e.g., authentication, injection)",
           "required": false
         }
       ],
-      "template": "Help me conduct manual penetration testing of {{target_url}} using BurpSuite tools.\n\n**Manual Testing Approach:**\n\n1. **Proxy Setup & Traffic Analysis**\n   - Review proxy history for interesting requests\n   - Identify potential attack vectors from traffic patterns\n\n2. **Manual Request Manipulation**\n   - Send suspicious requests to Repeater for modification\n   - Test various payloads and injection techniques\n   - Analyze responses for security vulnerabilities\n\n3. **Automated Attack Vectors** {{#if test_scenarios}}\n   Focus on: {{test_scenarios}}{{/if}}\n   - Use Intruder for parameter brute-forcing\n   - Test common attack patterns (SQLi, XSS, CSRF, etc.)\n   - Enumerate hidden parameters and endpoints\n\n4. **Deep Analysis**\n   - Decode/encode suspicious data found in requests\n   - Compare similar requests to identify patterns\n   - Document all findings with evidence\n\nGuide me step-by-step through the manual testing process, explaining what to look for and how to exploit any findings."
+      "template": "I need guided manual penetration testing for {{target_url}}{{#focus_areas}} with focus on {{focus_areas}}{{/focus_areas}}. Please assist me with:\n\n1. **Manual Testing Setup**\n   - Configure proxy to capture all traffic\n   - Set up Repeater for manual request modification\n   - Prepare common attack payloads and encoding tools\n\n2. **Interactive Testing Guidance**\n   - Guide me through manual testing procedures\n   - Help craft custom requests for specific test cases\n   - Assist with payload encoding and obfuscation techniques\n\n3. **Real-time Analysis**\n   - Analyze proxy traffic as I browse the application\n   - Decode and analyze suspicious parameters or responses\n   - Identify interesting endpoints for focused testing\n\n4. **Attack Vector Development**\n   - Help develop custom attack payloads\n   - Assist with chaining multiple vulnerabilities\n   - Guide exploitation of identified weaknesses\n\n5. **Documentation Support**\n   - Document findings as we discover them\n   - Maintain evidence of successful exploits\n   - Prepare detailed technical reports\n\nPlease provide step-by-step guidance throughout this manual testing process."
     },
     {
       "name": "security-issue-analysis",
-      "description": "Analyze and explain security issues found in BurpSuite",
-      "arguments": [],
-      "template": "Analyze all the security issues currently found in BurpSuite and provide a comprehensive report.\n\nPlease:\n1. Get all current security issues from the scanner\n2. Categorize them by severity (Critical, High, Medium, Low)\n3. Explain each vulnerability type and its potential impact\n4. Provide specific remediation steps for each issue\n5. Prioritize fixes based on risk assessment\n\nMake the analysis suitable for both technical and non-technical stakeholders."
-    },
-    {
-      "name": "burp-workflow-automation",
-      "description": "Set up automated security testing workflows",
+      "description": "Deep analysis of identified security vulnerabilities",
       "arguments": [
         {
-          "name": "target_list",
-          "description": "Comma-separated list of targets to scan",
-          "required": true
-        },
-        {
-          "name": "scan_schedule",
-          "description": "When to run scans (e.g., 'daily', 'weekly', 'on-demand')",
+          "name": "scan_task_id",
+          "description": "Scan task ID to analyze (optional)",
           "required": false
         }
       ],
-      "template": "Help me set up an automated security testing workflow for these targets: {{target_list}}\n\n**Automation Setup:**\n\n1. **Batch Scanning**\n   - Configure scans for all targets\n   - Set appropriate scan types for each target\n   - Schedule: {{scan_schedule || 'on-demand'}}\n\n2. **Monitoring & Alerting**\n   - Set up monitoring for new high-severity issues\n   - Configure automated reporting\n   - Define escalation procedures\n\n3. **Integration Workflow**\n   - Show how to integrate results with other security tools\n   - Demonstrate API access for automated processing\n   - Set up continuous security monitoring\n\nWalk me through setting up this automated workflow and show me how to monitor and manage the results effectively."
-    }
-  ],
-  "globalShortcuts": [
-    {
-      "name": "Quick Scan",
-      "key": "Ctrl+Shift+S",
-      "action": "Use the 'quick-vulnerability-scan' prompt"
+      "template": "I need detailed analysis of security vulnerabilities{{#scan_task_id}} from scan {{scan_task_id}}{{/scan_task_id}}. Please help me:\n\n1. **Vulnerability Assessment**\n   - Retrieve all available scan results\n   - Categorize findings by type and severity\n   - Identify false positives and validate real issues\n\n2. **Technical Analysis**\n   - Provide detailed technical explanation for each vulnerability\n   - Explain the root cause and potential impact\n   - Demonstrate exploitation scenarios where appropriate\n\n3. **Risk Evaluation**\n   - Assess business risk for each finding\n   - Consider environmental factors and context\n   - Prioritize remediation efforts\n\n4. **Remediation Planning**\n   - Provide specific remediation steps for each issue\n   - Suggest defensive coding practices\n   - Recommend security controls and configurations\n\n5. **Evidence Documentation**\n   - Decode and analyze any suspicious payloads\n   - Document proof-of-concept exploits\n   - Prepare evidence for security team review\n\nPlease provide comprehensive analysis with actionable recommendations."
     },
     {
-      "name": "Security Analysis",
-      "key": "Ctrl+Shift+A",
-      "action": "Use the 'security-issue-analysis' prompt"
+      "name": "burp-workflow-automation",
+      "description": "Automated security testing workflow using all BurpSuite tools",
+      "arguments": [
+        {
+          "name": "target_url",
+          "description": "Target URL for automated testing",
+          "required": true
+        },
+        {
+          "name": "attack_types",
+          "description": "Types of attacks to include (e.g., injection, xss, auth)",
+          "required": false
+        }
+      ],
+      "template": "I need to set up automated security testing for {{target_url}}{{#attack_types}} including {{attack_types}} attacks{{/attack_types}}. Please help me:\n\n1. **Automated Workflow Setup**\n   - Initialize comprehensive scanning workflow\n   - Configure all BurpSuite tools for maximum coverage\n   - Set up systematic testing approach\n\n2. **Multi-Vector Attack Automation**\n   - Configure Intruder attacks for multiple attack types\n   - Set up different payload sets for various vulnerabilities\n   - Automate common injection testing patterns\n\n3. **Comprehensive Coverage**\n   - Test all discovered endpoints systematically\n   - Vary HTTP methods and parameter combinations\n   - Include both authenticated and unauthenticated testing\n\n4. **Intelligent Analysis**\n   - Automatically analyze results from all tools\n   - Cross-reference findings between different techniques\n   - Identify patterns and correlations in vulnerabilities\n\n5. **Automated Reporting**\n   - Compile results from all testing phases\n   - Generate comprehensive security assessment report\n   - Provide prioritized remediation roadmap\n\n6. **Continuous Monitoring Setup**\n   - Configure ongoing monitoring for new vulnerabilities\n   - Set up alerts for critical security issues\n   - Establish baseline for future comparisons\n\nPlease execute this comprehensive automated workflow efficiently."
+    },
+    {
+      "name": "incident-response-analysis",
+      "description": "Security incident analysis using BurpSuite tools",
+      "arguments": [
+        {
+          "name": "incident_url",
+          "description": "URL involved in the security incident",
+          "required": true
+        },
+        {
+          "name": "incident_type",
+          "description": "Type of security incident (e.g., breach, injection, XSS)",
+          "required": false
+        }
+      ],
+      "template": "I need to analyze a security incident involving {{incident_url}}{{#incident_type}} related to {{incident_type}}{{/incident_type}}. Please assist with:\n\n1. **Incident Forensics**\n   - Analyze proxy history for suspicious activity patterns\n   - Examine site map for potential attack vectors used\n   - Review any available scan results for related vulnerabilities\n\n2. **Attack Vector Analysis**\n   - Reconstruct potential attack scenarios\n   - Test suspected vulnerabilities using Repeater\n   - Decode suspicious payloads found in logs or traffic\n\n3. **Impact Assessment**\n   - Scan for additional vulnerabilities that might have been exploited\n   - Identify potential lateral movement opportunities\n   - Assess data exposure and system compromise risks\n\n4. **Evidence Collection**\n   - Document all findings with technical evidence\n   - Preserve attack payloads and system responses\n   - Create timeline of suspected attack activities\n\n5. **Remediation Verification**\n   - Test proposed fixes and patches\n   - Verify that attack vectors have been properly closed\n   - Confirm no residual vulnerabilities remain\n\n6. **Prevention Recommendations**\n   - Suggest security improvements to prevent similar incidents\n   - Recommend monitoring and detection capabilities\n   - Provide security awareness training topics\n\nPlease provide thorough incident analysis with detailed findings and recommendations."
     }
   ]
 }
