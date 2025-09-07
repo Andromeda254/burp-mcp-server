@@ -254,10 +254,12 @@ public class McpProtocolHandler {
                 Use 'get_scan_results' with this task ID to retrieve findings.
                 """.formatted(scanType, url, taskId);
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", responseText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", responseText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to start scan for {}", url, e);
             return createErrorResponse(id, -32603, "Failed to start scan: " + e.getMessage());
@@ -271,10 +273,12 @@ public class McpProtocolHandler {
             var results = burpIntegration.getScanResults(taskId);
             var resultText = formatScanResults(results, taskId);
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", resultText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", resultText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to get scan results for task {}", taskId, e);
             return createErrorResponse(id, -32603, "Failed to retrieve scan results: " + e.getMessage());
@@ -291,10 +295,12 @@ public class McpProtocolHandler {
             var history = burpIntegration.getProxyHistory(limit, filter);
             var historyText = formatProxyHistory(history, limit, filter);
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", historyText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", historyText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to get proxy history", e);
             return createErrorResponse(id, -32603, "Failed to retrieve proxy history: " + e.getMessage());
@@ -329,10 +335,12 @@ public class McpProtocolHandler {
                 You can now manually test and modify the request in BurpSuite Repeater.
                 """.formatted(url, method, result.get("status"), result.get("message"));
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", responseText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", responseText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to send request to Repeater", e);
             return createErrorResponse(id, -32603, "Failed to send to Repeater: " + e.getMessage());
@@ -380,10 +388,12 @@ public class McpProtocolHandler {
                 The attack is now running in BurpSuite Intruder. Check the Intruder tab for results.
                 """.formatted(url, method, attackType, payloads.size(), attackId);
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", responseText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", responseText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to start Intruder attack", e);
             return createErrorResponse(id, -32603, "Failed to start Intruder attack: " + e.getMessage());
@@ -400,10 +410,12 @@ public class McpProtocolHandler {
             var result = burpIntegration.decodeData(data, encoding);
             var responseText = formatDecoderResult(result, "Decoded");
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", responseText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", responseText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to decode data with encoding {}", encoding, e);
             return createErrorResponse(id, -32603, "Failed to decode data: " + e.getMessage());
@@ -418,10 +430,12 @@ public class McpProtocolHandler {
             var result = burpIntegration.encodeData(data, encoding);
             var responseText = formatDecoderResult(result, "Encoded");
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", responseText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", responseText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to encode data with encoding {}", encoding, e);
             return createErrorResponse(id, -32603, "Failed to encode data: " + e.getMessage());
@@ -437,10 +451,12 @@ public class McpProtocolHandler {
             var siteMap = burpIntegration.getSiteMap(urlFilter);
             var siteMapText = formatSiteMap(siteMap, urlFilter);
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", siteMapText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", siteMapText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to get site map", e);
             return createErrorResponse(id, -32603, "Failed to retrieve site map: " + e.getMessage());
@@ -454,10 +470,12 @@ public class McpProtocolHandler {
             var info = burpIntegration.getBurpInfo();
             var infoText = formatBurpInfo(info);
             
-            return createSuccessResponse(id, List.of(Map.of(
-                "type", "text",
-                "text", infoText
-            )));
+            return createSuccessResponse(id, Map.of(
+                "content", List.of(Map.of(
+                    "type", "text",
+                    "text", infoText
+                ))
+            ));
         } catch (Exception e) {
             logger.error("Failed to get BurpSuite info", e);
             return createErrorResponse(id, -32603, "Failed to get BurpSuite info: " + e.getMessage());
