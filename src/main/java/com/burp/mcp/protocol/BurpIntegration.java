@@ -399,13 +399,15 @@ public class BurpIntegration implements BurpExtension {
         var results = new ArrayList<Map<String, Object>>();
         
         for (int i = 0; i < Math.min(payloadCount, 20); i++) {
-            results.add(Map.of(
-                "payload", "payload_" + i,
-                "status", 200 + (i % 5) * 100,
-                "length", 1000 + (i * 50),
-                "time", 100 + (i * 10),
-                "error", i % 10 == 0 ? "Connection timeout" : null
-            ));
+            var result = new HashMap<String, Object>();
+            result.put("payload", "payload_" + i);
+            result.put("status", 200 + (i % 5) * 100);
+            result.put("length", 1000 + (i * 50));
+            result.put("time", 100 + (i * 10));
+            if (i % 10 == 0) {
+                result.put("error", "Connection timeout");
+            }
+            results.add(result);
         }
         
         return results;
