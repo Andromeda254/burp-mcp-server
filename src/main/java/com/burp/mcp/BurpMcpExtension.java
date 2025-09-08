@@ -47,7 +47,6 @@ public class BurpMcpExtension implements BurpExtension {
             
             // Start MCP server in a separate thread to avoid blocking BurpSuite
             CompletableFuture.runAsync(this::startMcpServerAsync)
-                .orTimeout(10, TimeUnit.SECONDS)
                 .whenComplete(this::handleMcpServerStartup);
             
             // Register extension callbacks
@@ -72,7 +71,8 @@ public class BurpMcpExtension implements BurpExtension {
             if ("true".equalsIgnoreCase(startHttpServer)) {
                 var port = Integer.parseInt(System.getProperty("burp.mcp.http.port", "5001"));
                 logger.info("Starting MCP HTTP server on port {}", port);
-                mcpServer.startHttpServer(port);
+                mcpServer.startHttpServer(port, false); // Non-blocking for BurpSuite extension
+                logger.info("MCP HTTP server started successfully on port {}", port);
             } else {
                 logger.info("MCP server initialized (HTTP server disabled)");
             }

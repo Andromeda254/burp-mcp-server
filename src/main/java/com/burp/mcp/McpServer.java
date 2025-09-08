@@ -156,6 +156,13 @@ public class McpServer {
      * Start HTTP server on specified port
      */
     public void startHttpServer(int port) {
+        startHttpServer(port, true); // Block by default for main application
+    }
+    
+    /**
+     * Start HTTP server on specified port with optional blocking
+     */
+    public void startHttpServer(int port, boolean block) {
         try {
             httpServer = HttpServer.create(new InetSocketAddress("localhost", port), 0);
             httpServer.createContext("/mcp", new McpHttpHandler());
@@ -167,18 +174,25 @@ public class McpServer {
             // Keep the server running
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
             
-            // Block main thread
-            synchronized (this) {
-                try {
-                    wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+            if (block) {
+                // Block main thread (for standalone application)
+                synchronized (this) {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
+            // If not blocking, server runs in background (for BurpSuite extension)
             
         } catch (IOException e) {
             logger.error("Failed to start HTTP server on port {}", port, e);
-            System.exit(1);
+            if (block) {
+                System.exit(1); // Only exit if this is the main application
+            } else {
+                throw new RuntimeException("Failed to start HTTP server", e); // Let extension handle the error
+            }
         }
     }
     

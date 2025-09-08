@@ -1,13 +1,11 @@
 {
   "mcpServers": {
     "burp-mcp-server": {
-      "command": "nc",
-      "args": [
-        "localhost",
-        "1337"
-      ],
+      "command": "/home/jojo/dev/burp-mcp-server/connect-to-burp.sh",
+      "args": [],
       "env": {
-        "BURP_MCP_LOG_LEVEL": "INFO"
+        "BURP_MCP_LOG_LEVEL": "INFO",
+        "BURP_API_PORT": "5001"
       }
     }
   },
