@@ -47,11 +47,45 @@ public class McpServer {
         this.protocolHandler = new McpProtocolHandler(burpIntegration);
     }
     
+    /**
+     * Check if live mode is enabled through command line args or environment
+     */
+    private static boolean checkLiveMode(String[] args) {
+        // Check command line arguments
+        for (String arg : args) {
+            if ("--live-mode".equals(arg) || "--live".equals(arg)) {
+                return true;
+            }
+        }
+        
+        // Check environment variables
+        String integrationMode = System.getenv("BURP_INTEGRATION_MODE");
+        if ("LIVE".equalsIgnoreCase(integrationMode)) {
+            return true;
+        }
+        
+        // Check if running inside BurpSuite (would have BurpSuite classes available)
+        try {
+            Class.forName("burp.api.montoya.MontoyaApi");
+            return true; // Running inside BurpSuite
+        } catch (ClassNotFoundException e) {
+            return false; // Standalone mode
+        }
+    }
+    
     public static void main(String[] args) {
+        // Determine integration mode
+        boolean liveMode = checkLiveMode(args);
+        if (liveMode) {
+            logger.info("Starting MCP server in LIVE integration mode");
+        } else {
+            logger.info("Starting MCP server in STANDALONE mode with mock data");
+        }
+        
         McpServer server = new McpServer();
         
         // Check command line arguments to determine transport mode
-        if (args.length > 0 && "--stdio".equals(args[0])) {
+        if (args.length > 0 && ("--stdio".equals(args[0]) || "stdio".equals(args[0]))) {
             logger.info("Starting MCP server in stdio mode");
             server.startStdioMode();
         } else {

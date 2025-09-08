@@ -54,6 +54,17 @@ This is a comprehensive Model Context Protocol (MCP) server that provides full i
 ./start-server.sh help
 ```
 
+### Live BurpSuite Professional Integration
+```bash
+# Setup live integration with BurpSuite Professional
+./setup-burp-live-integration.sh
+
+# This script will:
+# 1. Configure Claude Desktop for live integration
+# 2. Provide step-by-step BurpSuite extension setup instructions
+# 3. Guide you through testing the live connection
+```
+
 ### Setup Commands
 ```bash
 # Configure Claude Desktop integration automatically
@@ -204,6 +215,110 @@ BURP_MCP_LOG_LEVEL=DEBUG ./start-server.sh stdio
 2. Restart Claude Desktop
 3. Verify MCP server appears in available tools
 4. Test with prompts like: "Please scan https://example.com for vulnerabilities"
+
+## Live BurpSuite Professional Integration
+
+The server supports two integration modes:
+
+### Standalone Mode (Mock Data)
+- Uses comprehensive mock data for development and testing
+- No BurpSuite Professional required
+- Perfect for learning and development
+
+### Live Integration Mode (Real BurpSuite Data)
+- Connects directly to BurpSuite Professional
+- Uses real scan data, proxy traffic, and live tools
+- Requires BurpSuite Professional with extension loaded
+
+### Setting up Live Integration
+
+1. **Run the setup script:**
+   ```bash
+   ./setup-burp-live-integration.sh
+   ```
+
+2. **Load BurpSuite Extension:**
+   - Open BurpSuite Professional
+   - Go to Extensions → Installed
+   - Click 'Add' to add new extension
+   - Select 'Java' extension type
+   - Browse to `build/libs/burp-mcp-server-1.0.0-burp-extension.jar`
+   - Click 'Next' to load the extension
+
+3. **Verify Extension Loading:**
+   - Check BurpSuite Output tab for:
+     ```
+     [BurpMcpExtension] Extension loaded successfully
+     [BurpMcpExtension] Starting MCP Server on port 1337...
+     [BurpMcpExtension] MCP Server ready for Claude Desktop connection
+     ```
+
+4. **Restart Claude Desktop:**
+   - Close and reopen Claude Desktop
+   - The MCP server will now use live BurpSuite data
+
+### Testing Live Integration
+
+Test the connection with Claude Desktop:
+```
+"Get BurpSuite connection status and available tools"
+```
+
+Expected response for live integration:
+- Real BurpSuite Professional version information
+- Live extension status
+- Available tools and features
+- Current proxy/scanner configuration
+
+### Live Integration Features
+
+**Live Scanner:**
+- Real vulnerability scans with BurpSuite's engine
+- Progress monitoring and real-time results
+- Access to BurpSuite's vulnerability database
+
+**Live Proxy:**
+- Real HTTP/HTTPS traffic interception
+- Live request/response analysis
+- Traffic filtering and search
+
+**Live Repeater:**
+- Send requests directly to BurpSuite Repeater
+- Manual request modification and testing
+- Real-time response analysis
+
+**Live Intruder:**
+- Configure and launch real Intruder attacks
+- Custom payload sets and attack types
+- Real-time attack progress monitoring
+
+**Live Site Map:**
+- Access to BurpSuite's discovered site structure
+- Real endpoint discovery and analysis
+- Live application mapping
+
+### Troubleshooting Live Integration
+
+**Extension doesn't load:**
+- Verify Java 17+ is used by BurpSuite
+- Check BurpSuite Output tab for errors
+- Ensure JAR file is not corrupted
+
+**Claude Desktop can't connect:**
+- Verify BurpSuite extension is loaded and running
+- Check no firewall blocking localhost:1337
+- Restart both BurpSuite and Claude Desktop
+
+**Mock data instead of live data:**
+- Ensure BURP_INTEGRATION_MODE=LIVE in environment
+- Verify --live-mode argument is passed
+- Check BurpSuite extension status
+
+**Enable debug logging:**
+```bash
+# Set in Claude Desktop config:
+"BURP_MCP_LOG_LEVEL": "DEBUG"
+```
 
 ## Deployment Considerations
 
