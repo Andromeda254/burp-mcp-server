@@ -5,7 +5,9 @@
       "args": [],
       "env": {
         "BURP_MCP_LOG_LEVEL": "INFO",
-        "BURP_API_PORT": "5001"
+        "BURP_API_PORTS": "5001,5002,5003,5004,5005",
+        "BURP_CONNECTION_TIMEOUT": "30",
+        "BURP_RETRY_ENABLED": "true"
       }
     }
   },
