@@ -69,17 +69,61 @@ public class BurpMcpExtension implements BurpExtension {
             var startHttpServer = System.getProperty("burp.mcp.http.enabled", "true");
             
             if ("true".equalsIgnoreCase(startHttpServer)) {
-                var port = Integer.parseInt(System.getProperty("burp.mcp.http.port", "5001"));
+                // Try port 5001, then 5002 if busy
+                int basePort = Integer.parseInt(System.getProperty("burp.mcp.http.port", "5001"));
+                int port = findAvailablePort(basePort);
+                
                 logger.info("Starting MCP HTTP server on port {}", port);
+                api.logging().logToOutput("[BurpMcpExtension] Attempting to start MCP server on port " + port);
+                
                 mcpServer.startHttpServer(port, false); // Non-blocking for BurpSuite extension
+                
                 logger.info("MCP HTTP server started successfully on port {}", port);
+                api.logging().logToOutput("[BurpMcpExtension] ✅ MCP HTTP server started successfully on port " + port);
+                
             } else {
                 logger.info("MCP server initialized (HTTP server disabled)");
+                api.logging().logToOutput("[BurpMcpExtension] MCP server initialized (HTTP server disabled)");
             }
             
         } catch (Exception e) {
             logger.error("Failed to start MCP server", e);
-            throw new RuntimeException("MCP server startup failed", e);
+            api.logging().logToError("[BurpMcpExtension] ❌ Detailed error: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            
+            if (e.getCause() != null) {
+                api.logging().logToError("[BurpMcpExtension] Root cause: " + e.getCause().getClass().getSimpleName() + ": " + e.getCause().getMessage());
+            }
+            
+            // Print stack trace to BurpSuite output for debugging
+            var sw = new java.io.StringWriter();
+            var pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            api.logging().logToOutput("[BurpMcpExtension] Stack trace:\n" + sw.toString());
+            
+            throw new RuntimeException("MCP server startup failed: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Find an available port starting from the base port
+     */
+    private int findAvailablePort(int basePort) {
+        for (int port = basePort; port <= basePort + 10; port++) {
+            try (var socket = new java.net.ServerSocket(port)) {
+                logger.info("Port {} is available", port);
+                return port;
+            } catch (java.io.IOException e) {
+                logger.debug("Port {} is busy, trying next", port);
+            }
+        }
+        
+        // If no port found in range, use a random available port
+        try (var socket = new java.net.ServerSocket(0)) {
+            int randomPort = socket.getLocalPort();
+            logger.info("Using random available port {}", randomPort);
+            return randomPort;
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Could not find any available port", e);
         }
     }
     

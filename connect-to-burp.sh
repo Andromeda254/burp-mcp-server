@@ -4,7 +4,8 @@
 # This script connects Claude Desktop directly to the BurpSuite extension
 
 BURP_HOST="localhost"
-BURP_PORT="5001"
+BURP_PORTS="5001 5002 5003 5004 5005"  # Try multiple ports
+BURP_PORT="5001"  # Default for messages
 MAX_RETRIES=30
 RETRY_DELAY=1
 
@@ -19,18 +20,27 @@ log() {
 }
 
 check_burp_connection() {
-    # Check if BurpSuite extension is running on port 1337
-    if command -v nc &> /dev/null; then
-        nc -z "$BURP_HOST" "$BURP_PORT" 2>/dev/null
-        return $?
-    elif command -v telnet &> /dev/null; then
-        timeout 2 telnet "$BURP_HOST" "$BURP_PORT" </dev/null &>/dev/null
-        return $?
-    else
-        # Fallback: try to connect with bash
-        timeout 2 bash -c "exec 3<>/dev/tcp/$BURP_HOST/$BURP_PORT" &>/dev/null
-        return $?
-    fi
+    # Check if BurpSuite extension is running on any of the ports
+    for port in $BURP_PORTS; do
+        if command -v nc &> /dev/null; then
+            if nc -z "$BURP_HOST" "$port" 2>/dev/null; then
+                BURP_PORT="$port"  # Update the port we found
+                return 0
+            fi
+        elif command -v telnet &> /dev/null; then
+            if timeout 2 telnet "$BURP_HOST" "$port" </dev/null &>/dev/null 2>&1; then
+                BURP_PORT="$port"
+                return 0
+            fi
+        else
+            # Fallback: try to connect with bash
+            if timeout 2 bash -c "exec 3<>/dev/tcp/$BURP_HOST/$port" &>/dev/null 2>&1; then
+                BURP_PORT="$port"
+                return 0
+            fi
+        fi
+    done
+    return 1
 }
 
 wait_for_burp_extension() {
@@ -38,7 +48,7 @@ wait_for_burp_extension() {
     
     for i in $(seq 1 $MAX_RETRIES); do
         if check_burp_connection; then
-            log "✓ BurpSuite extension found on port $BURP_PORT"
+            log "✅ BurpSuite extension found on port $BURP_PORT"
             return 0
         fi
         
