@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "burp-mcp-server": {
+      "command": "nc",
+      "args": [
+        "localhost",
+        "1337"
+      ],
+      "env": {
+        "BURP_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  },
+  "prompts": [
+    {
+      "name": "live-burp-security-audit",
+      "description": "Live security audit using BurpSuite Professional",
+      "arguments": [
+        {
+          "name": "target_url",
+          "description": "Target web application URL",
+          "required": true
+        }
+      ],
+      "template": "I need to perform a live security audit on {{target_url}} using BurpSuite Professional. Please help me:\n\n1. **Verify Live Integration**\n   - Check BurpSuite connection status\n   - Confirm all tools are available\n   - Verify proxy configuration\n\n2. **Live Traffic Analysis**\n   - Analyze real proxy traffic\n   - Review live site map data\n   - Monitor ongoing requests\n\n3. **Live Vulnerability Scanning**\n   - Start live security scans\n   - Monitor scan progress in real-time\n   - Review findings as they are discovered\n\n4. **Interactive Testing**\n   - Send requests to Repeater for manual testing\n   - Configure Intruder attacks with live payloads\n   - Use live encoding/decoding tools\n\n5. **Real-time Reporting**\n   - Generate reports from live scan data\n   - Export findings from BurpSuite\n   - Document live exploitation attempts\n\nThis audit will use live BurpSuite Professional data and functionality."
+    }
+  ]
+}

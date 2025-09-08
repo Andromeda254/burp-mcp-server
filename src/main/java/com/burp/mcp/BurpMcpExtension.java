@@ -66,8 +66,8 @@ public class BurpMcpExtension implements BurpExtension {
             // Create MCP server with BurpSuite integration
             this.mcpServer = new McpServer(burpIntegration);
             
-            // Check if we should start HTTP server for testing
-            var startHttpServer = System.getProperty("burp.mcp.http.enabled", "false");
+            // Start HTTP server for MCP communication (enabled by default)
+            var startHttpServer = System.getProperty("burp.mcp.http.enabled", "true");
             
             if ("true".equalsIgnoreCase(startHttpServer)) {
                 var port = Integer.parseInt(System.getProperty("burp.mcp.http.port", "5001"));
