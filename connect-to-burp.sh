@@ -69,31 +69,57 @@ wait_for_burp_extension() {
 }
 
 connect_to_burp() {
-    log "Establishing connection to BurpSuite extension..."
+    log "Establishing HTTP connection to BurpSuite MCP extension..."
+    log "Connecting to http://$BURP_HOST:$BURP_PORT/mcp"
     
-    # Use socat if available (best option)
-    if command -v socat &> /dev/null; then
-        log "Using socat for connection"
-        exec socat - "TCP:$BURP_HOST:$BURP_PORT"
-    
-    # Use nc if available
-    elif command -v nc &> /dev/null; then
-        log "Using nc for connection"
-        exec nc "$BURP_HOST" "$BURP_PORT"
-    
-    # Use telnet as fallback
-    elif command -v telnet &> /dev/null; then
-        log "Using telnet for connection"
-        exec telnet "$BURP_HOST" "$BURP_PORT"
-    
-    # Bash TCP connection as last resort
-    else
-        log "Using bash TCP connection"
-        exec 3<>"/dev/tcp/$BURP_HOST/$BURP_PORT"
-        cat <&3 &
-        cat >&3
-        wait
-    fi
+    # Create HTTP-to-stdio bridge for MCP protocol
+    # This converts stdio MCP messages to HTTP POST requests
+    python3 -c "
+import sys
+import json
+import urllib.request
+import urllib.parse
+
+# MCP HTTP endpoint
+url = 'http://$BURP_HOST:$BURP_PORT/mcp'
+
+try:
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            break
+            
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Create HTTP request
+        data = line.encode('utf-8')
+        req = urllib.request.Request(url, data=data)
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('Accept', 'application/json')
+        
+        # Send request and get response
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                result = response.read().decode('utf-8')
+                print(result)
+                sys.stdout.flush()
+        except Exception as e:
+            # Send error response in MCP format
+            error_resp = {
+                'jsonrpc': '2.0',
+                'error': {'code': -32603, 'message': str(e)}
+            }
+            print(json.dumps(error_resp))
+            sys.stdout.flush()
+            
+except KeyboardInterrupt:
+    pass
+except Exception as e:
+    print(f'Connection error: {e}', file=sys.stderr)
+    sys.exit(1)
+"
 }
 
 # Main execution

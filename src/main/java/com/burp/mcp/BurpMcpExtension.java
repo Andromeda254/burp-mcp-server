@@ -80,6 +80,7 @@ public class BurpMcpExtension implements BurpExtension {
                 
                 logger.info("MCP HTTP server started successfully on port {}", port);
                 api.logging().logToOutput("[BurpMcpExtension] ✅ MCP HTTP server started successfully on port " + port);
+                api.logging().logToOutput("[BurpMcpExtension] HTTP endpoint: http://localhost:" + port + "/mcp");
                 
             } else {
                 logger.info("MCP server initialized (HTTP server disabled)");
