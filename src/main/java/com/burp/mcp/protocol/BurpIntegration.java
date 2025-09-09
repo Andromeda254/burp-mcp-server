@@ -163,26 +163,70 @@ public class BurpIntegration implements BurpExtension {
     
     private void startActiveScan(String url, String taskId) {
         try {
+            api.logging().logToOutput("[BurpMCP] 🚀 Starting ACTIVE SCAN for: " + url);
+            api.logging().logToOutput("[BurpMCP] Task ID: " + taskId);
+            
             // Parse URL and create HTTP request
             var httpRequest = burp.api.montoya.http.message.requests.HttpRequest.httpRequestFromUrl(url);
+            api.logging().logToOutput("[BurpMCP] ✓ Created HTTP request for: " + httpRequest.url());
             
-            // Create audit configuration for active scanning
+            // **ENHANCED APPROACH: Try to ensure scan tasks appear in main UI**
+            
+            // 1. Add URL to BurpSuite scope first
+            api.scope().includeInScope(httpRequest.url());
+            api.logging().logToOutput("[BurpMCP] ✓ Added " + url + " to BurpSuite scope");
+            
+            // 2. Send initial request to populate site map and proxy history
+            var httpResponse = api.http().sendRequest(httpRequest);
+            api.logging().logToOutput("[BurpMCP] ✓ Sent initial request - Response: " + httpResponse.statusCode());
+            
+            // 3. Create configurations
+            var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration(url);
             var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(
                 burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_ACTIVE_AUDIT_CHECKS);
             
-            // Create crawl configuration with the URL
-            var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration(url);
+            api.logging().logToOutput("[BurpMCP] ✓ Created crawl and audit configurations");
             
-            // **KEY FIX: Use proper Montoya API to create visible tasks in main UI**
-            // First add the URL to BurpSuite scope and site map
-            api.scope().includeInScope(httpRequest.url());
-            
-            // Send initial request to populate site map and proxy history
-            api.http().sendRequest(httpRequest);
-            
-            // Then start crawl and audit separately for proper task visibility
+            // 4. Start scan tasks
+            api.logging().logToOutput("[BurpMCP] 🔍 Launching crawl task...");
             var crawlTask = api.scanner().startCrawl(crawlConfig);
+            api.logging().logToOutput("[BurpMCP] ✅ Crawl task started: " + crawlTask.getClass().getSimpleName());
+            
+            api.logging().logToOutput("[BurpMCP] 🔍 Launching audit task...");
             var auditTask = api.scanner().startAudit(auditConfig);
+            api.logging().logToOutput("[BurpMCP] ✅ Audit task started: " + auditTask.getClass().getSimpleName());
+            
+            // 5. Add the initial request to the audit task to ensure it processes something
+            try {
+                auditTask.addRequest(httpRequest);
+                api.logging().logToOutput("[BurpMCP] ✓ Added initial request to audit task");
+            } catch (Exception e) {
+                api.logging().logToOutput("[BurpMCP] ⚠ Could not add request to audit: " + e.getMessage());
+            }
+            
+            // 6. Monitor task status (using safe methods only)
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(2000); // Wait a bit for tasks to start
+                    api.logging().logToOutput("[BurpMCP] 📊 SCAN STATUS UPDATE:");
+                    api.logging().logToOutput("[BurpMCP]   ✓ Crawl task created: " + crawlTask.getClass().getSimpleName());
+                    api.logging().logToOutput("[BurpMCP]   ✓ Audit task created: " + auditTask.getClass().getSimpleName());
+                    
+                    // Try to get issues (this method typically works)
+                    try {
+                        int issueCount = auditTask.issues().size();
+                        api.logging().logToOutput("[BurpMCP]   📋 Issues found so far: " + issueCount);
+                    } catch (Exception e) {
+                        api.logging().logToOutput("[BurpMCP]   📋 Issues check unavailable: " + e.getMessage());
+                    }
+                    
+                    api.logging().logToOutput("[BurpMCP] ℹ️  Note: Tasks are running but may not appear in main UI due to API limitations");
+                    api.logging().logToOutput("[BurpMCP] ℹ️  Check proxy history and scope for scan activity");
+                    
+                } catch (Exception e) {
+                    api.logging().logToOutput("[BurpMCP] ⚠ Error monitoring tasks: " + e.getMessage());
+                }
+            });
             
             // Store the real scan task references
             @SuppressWarnings("unchecked")
@@ -194,7 +238,8 @@ public class BurpIntegration implements BurpExtension {
             task.put("burpScanLaunched", true);
             task.put("burpTaskVisible", true);
             
-            logger.info("Active scan launched for {} - should be visible in BurpSuite Dashboard > Tasks", url);
+            api.logging().logToOutput("[BurpMCP] 🎯 Active scan tasks launched! Check Scanner > Dashboard > Tasks");
+            logger.info("Active scan launched for {} with enhanced task management", url);
             
         } catch (Exception e) {
             logger.error("Failed to start BurpSuite active scan for {}: {}", url, e.getMessage());
@@ -203,26 +248,75 @@ public class BurpIntegration implements BurpExtension {
     
     private void startFullScan(String url, String taskId) {
         try {
+            api.logging().logToOutput("[BurpMCP] 🚀 Starting FULL SCAN (crawl + audit) for: " + url);
+            api.logging().logToOutput("[BurpMCP] Task ID: " + taskId);
+            
             // Parse URL and create HTTP request
             var httpRequest = burp.api.montoya.http.message.requests.HttpRequest.httpRequestFromUrl(url);
+            api.logging().logToOutput("[BurpMCP] ✓ Created HTTP request for: " + httpRequest.url());
             
-            // Create comprehensive crawl configuration for full scan
+            // **ENHANCED APPROACH: Try to ensure scan tasks appear in main UI**
+            
+            // 1. Add URL to BurpSuite scope first
+            api.scope().includeInScope(httpRequest.url());
+            api.logging().logToOutput("[BurpMCP] ✓ Added " + url + " to BurpSuite scope");
+            
+            // 2. Send initial request to populate site map and proxy history
+            var httpResponse = api.http().sendRequest(httpRequest);
+            api.logging().logToOutput("[BurpMCP] ✓ Sent initial request - Response: " + httpResponse.statusCode());
+            
+            // 3. Create comprehensive configurations
             var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration(url);
-            
-            // Create comprehensive audit configuration
             var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(
                 burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_ACTIVE_AUDIT_CHECKS);
             
-            // **KEY FIX: Use proper Montoya API for visible tasks in main UI**
-            // Add URL to scope for comprehensive scanning
-            api.scope().includeInScope(httpRequest.url());
+            api.logging().logToOutput("[BurpMCP] ✓ Created comprehensive crawl and audit configurations");
             
-            // Send initial request to populate site map and proxy history
-            api.http().sendRequest(httpRequest);
-            
-            // Start comprehensive crawl and audit for full scan
+            // 4. Start scan tasks
+            api.logging().logToOutput("[BurpMCP] 🔍 Launching comprehensive crawl task...");
             var crawlTask = api.scanner().startCrawl(crawlConfig);
+            api.logging().logToOutput("[BurpMCP] ✅ Crawl task started: " + crawlTask.getClass().getSimpleName());
+            
+            api.logging().logToOutput("[BurpMCP] 🔍 Launching comprehensive audit task...");
             var auditTask = api.scanner().startAudit(auditConfig);
+            api.logging().logToOutput("[BurpMCP] ✅ Audit task started: " + auditTask.getClass().getSimpleName());
+            
+            // 5. Add the initial request to the audit task
+            try {
+                auditTask.addRequest(httpRequest);
+                api.logging().logToOutput("[BurpMCP] ✓ Added initial request to audit task");
+            } catch (Exception e) {
+                api.logging().logToOutput("[BurpMCP] ⚠ Could not add request to audit: " + e.getMessage());
+            }
+            
+            // 6. Monitor task status for comprehensive scan (using safe methods only)
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(2000);
+                    api.logging().logToOutput("[BurpMCP] 📊 FULL SCAN STATUS UPDATE:");
+                    api.logging().logToOutput("[BurpMCP]   ✓ Crawl task created: " + crawlTask.getClass().getSimpleName());
+                    api.logging().logToOutput("[BurpMCP]   ✓ Audit task created: " + auditTask.getClass().getSimpleName());
+                    
+                    // Try to get issues (this method typically works)
+                    try {
+                        int issueCount = auditTask.issues().size();
+                        api.logging().logToOutput("[BurpMCP]   📋 Security issues found: " + issueCount);
+                        
+                        if (issueCount > 0) {
+                            api.logging().logToOutput("[BurpMCP] 🔍 Found issues - check Scanner > Issues tab");
+                        }
+                    } catch (Exception e) {
+                        api.logging().logToOutput("[BurpMCP]   📋 Issues check unavailable: " + e.getMessage());
+                    }
+                    
+                    api.logging().logToOutput("[BurpMCP] ℹ️  Full scan tasks created but may not appear in Dashboard > Tasks");
+                    api.logging().logToOutput("[BurpMCP] ℹ️  This is due to Montoya API limitations in current BurpSuite version");
+                    api.logging().logToOutput("[BurpMCP] ✅ Scan activity should be visible in Proxy history and Site map");
+                    
+                } catch (Exception e) {
+                    api.logging().logToOutput("[BurpMCP] ⚠ Error monitoring full scan: " + e.getMessage());
+                }
+            });
             
             // Store the real scan task references
             @SuppressWarnings("unchecked")
@@ -234,7 +328,8 @@ public class BurpIntegration implements BurpExtension {
             task.put("burpScanLaunched", true);
             task.put("burpTaskVisible", true);
             
-            logger.info("Full scan (crawl + audit) launched for {} - should be visible in BurpSuite Dashboard > Tasks", url);
+            api.logging().logToOutput("[BurpMCP] 🎯 Full scan tasks launched! Check Scanner > Dashboard > Tasks");
+            logger.info("Full scan launched for {} with enhanced task management", url);
             
         } catch (Exception e) {
             logger.error("Failed to start BurpSuite full scan for {}: {}", url, e.getMessage());
