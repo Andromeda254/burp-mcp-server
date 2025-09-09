@@ -99,6 +99,13 @@ try:
         req.add_header('Content-Type', 'application/json')
         req.add_header('Accept', 'application/json')
         
+        # Parse JSON to get request id for proper error responses
+        try:
+            request_data = json.loads(line)
+            request_id = request_data.get('id', 0)  # Default to 0 if no id
+        except:
+            request_id = 0  # Fallback for malformed JSON
+        
         # Send request and get response
         try:
             with urllib.request.urlopen(req, timeout=30) as response:
@@ -106,9 +113,10 @@ try:
                 print(result)
                 sys.stdout.flush()
         except Exception as e:
-            # Send error response in MCP format
+            # Send proper JSON-RPC error response with id field
             error_resp = {
                 'jsonrpc': '2.0',
+                'id': request_id,
                 'error': {'code': -32603, 'message': str(e)}
             }
             print(json.dumps(error_resp))
