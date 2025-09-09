@@ -91,18 +91,76 @@ public class McpProtocolHandler {
             // SCANNER TOOLS
             Map.of(
                 "name", "scan_target",
-                "description", "Initiate a security scan on a target URL",
+                "description", "Initiate a comprehensive security scan on a target URL with advanced options",
                 "inputSchema", Map.of(
                     "type", "object",
                     "properties", Map.of(
                         "url", Map.of(
                             "type", "string", 
-                            "description", "Target URL to scan"
+                            "description", "Target URL to scan (e.g., https://example.com or https://example.com/path)"
                         ),
                         "scanType", Map.of(
                             "type", "string",
                             "description", "Type of scan to perform",
-                            "enum", List.of("passive", "active", "full")
+                            "enum", List.of("passive", "active", "full", "targeted", "light", "comprehensive"),
+                            "default", "active"
+                        ),
+                        "scope", Map.of(
+                            "type", "string",
+                            "description", "Scan scope limitation",
+                            "enum", List.of("single_page", "directory", "subdomain", "domain", "unlimited"),
+                            "default", "directory"
+                        ),
+                        "maxDepth", Map.of(
+                            "type", "integer",
+                            "description", "Maximum crawl depth (1-10)",
+                            "minimum", 1,
+                            "maximum", 10,
+                            "default", 3
+                        ),
+                        "includeStatic", Map.of(
+                            "type", "boolean",
+                            "description", "Include static resources (CSS, JS, images) in scan",
+                            "default", false
+                        ),
+                        "aggressive", Map.of(
+                            "type", "boolean",
+                            "description", "Enable aggressive scanning modes (may be more detectable)",
+                            "default", false
+                        ),
+                        "skipSlowChecks", Map.of(
+                            "type", "boolean",
+                            "description", "Skip time-intensive vulnerability checks for faster results",
+                            "default", false
+                        ),
+                        "authentication", Map.of(
+                            "type", "object",
+                            "description", "Authentication credentials for authenticated scanning",
+                            "properties", Map.of(
+                                "type", Map.of(
+                                    "type", "string",
+                                    "enum", List.of("basic", "cookie", "bearer", "custom")
+                                ),
+                                "username", Map.of(
+                                    "type", "string"
+                                ),
+                                "password", Map.of(
+                                    "type", "string"
+                                ),
+                                "cookieName", Map.of(
+                                    "type", "string"
+                                ),
+                                "cookieValue", Map.of(
+                                    "type", "string"
+                                ),
+                                "bearerToken", Map.of(
+                                    "type", "string"
+                                ),
+                                "customHeader", Map.of(
+                                    "type", "string",
+                                    "description", "Custom header in format 'Header-Name: Value'"
+                                )
+                            )
                         )
                     ),
                     "required", List.of("url")
@@ -204,13 +262,58 @@ public class McpProtocolHandler {
             // SCANNER TOOLS (Additional)
             Map.of(
                 "name", "get_scan_results",
-                "description", "Retrieve results from a previous security scan",
+                "description", "Retrieve and analyze results from a previous security scan with filtering options",
                 "inputSchema", Map.of(
                     "type", "object",
                     "properties", Map.of(
                         "taskId", Map.of(
                             "type", "string",
                             "description", "Scan task ID (optional - returns all if omitted)"
+                        ),
+                        "severityFilter", Map.of(
+                            "type", "array",
+                            "description", "Filter by severity levels",
+                            "items", Map.of(
+                                "type", "string",
+                                "enum", List.of("Critical", "High", "Medium", "Low", "Info")
+                            )
+                        ),
+                        "vulnerabilityType", Map.of(
+                            "type", "array",
+                            "description", "Filter by vulnerability types",
+                            "items", Map.of(
+                                "type", "string",
+                                "enum", List.of("XSS", "SQLi", "IDOR", "CSRF", "XXE", "LFI", "RFI", "Command Injection", "Authentication", "Authorization", "Session", "Cryptography")
+                            )
+                        ),
+                        "includeRemediation", Map.of(
+                            "type", "boolean",
+                            "description", "Include detailed remediation advice",
+                            "default", true
+                        ),
+                        "includeEvidence", Map.of(
+                            "type", "boolean",
+                            "description", "Include proof-of-concept evidence",
+                            "default", true
+                        ),
+                        "sortBy", Map.of(
+                            "type", "string",
+                            "description", "Sort results by field",
+                            "enum", List.of("severity", "confidence", "name", "url"),
+                            "default", "severity"
+                        ),
+                        "format", Map.of(
+                            "type", "string",
+                            "description", "Output format for results",
+                            "enum", List.of("detailed", "summary", "csv", "json"),
+                            "default", "detailed"
+                        ),
+                        "limit", Map.of(
+                            "type", "integer",
+                            "description", "Maximum number of results to return",
+                            "minimum", 1,
+                            "maximum", 1000,
+                            "default", 100
                         )
                     )
                 )
@@ -318,15 +421,37 @@ public class McpProtocolHandler {
     
     private McpMessage handleScanTarget(Object id, JsonNode arguments) {
         var url = arguments.get("url").asText();
-        var scanType = arguments.has("scanType") ? arguments.get("scanType").asText() : "passive";
+        var scanType = arguments.has("scanType") ? arguments.get("scanType").asText() : "active";
+        
+        // Parse advanced scan configuration
+        var scanConfig = new HashMap<String, Object>();
+        scanConfig.put("url", url);
+        scanConfig.put("scanType", scanType);
+        scanConfig.put("scope", arguments.has("scope") ? arguments.get("scope").asText() : "directory");
+        scanConfig.put("maxDepth", arguments.has("maxDepth") ? arguments.get("maxDepth").asInt() : 3);
+        scanConfig.put("includeStatic", arguments.has("includeStatic") ? arguments.get("includeStatic").asBoolean() : false);
+        scanConfig.put("aggressive", arguments.has("aggressive") ? arguments.get("aggressive").asBoolean() : false);
+        scanConfig.put("skipSlowChecks", arguments.has("skipSlowChecks") ? arguments.get("skipSlowChecks").asBoolean() : false);
+        
+        // Parse authentication if provided
+        Map<String, String> authConfig = null;
+        if (arguments.has("authentication") && arguments.get("authentication").isObject()) {
+            authConfig = new HashMap<>();
+            var authNode = arguments.get("authentication");
+            if (authNode.has("type")) authConfig.put("type", authNode.get("type").asText());
+            if (authNode.has("username")) authConfig.put("username", authNode.get("username").asText());
+            if (authNode.has("password")) authConfig.put("password", authNode.get("password").asText());
+            if (authNode.has("cookieName")) authConfig.put("cookieName", authNode.get("cookieName").asText());
+            if (authNode.has("cookieValue")) authConfig.put("cookieValue", authNode.get("cookieValue").asText());
+            if (authNode.has("bearerToken")) authConfig.put("bearerToken", authNode.get("bearerToken").asText());
+            if (authNode.has("customHeader")) authConfig.put("customHeader", authNode.get("customHeader").asText());
+            scanConfig.put("authentication", authConfig);
+        }
         
         try {
-            var taskId = burpIntegration.startScan(url, scanType);
-            var responseText = """
-                Started %s scan for %s.
-                Task ID: %s
-                The scan will analyze the target for security vulnerabilities.
-                """.formatted(scanType, url, taskId);
+            var taskId = burpIntegration.startAdvancedScan(scanConfig);
+            
+            var responseText = buildScanStartResponse(scanConfig, taskId);
             
             return createSuccessResponse(id, Map.of(
                 "content", List.of(Map.of(
@@ -340,12 +465,72 @@ public class McpProtocolHandler {
         }
     }
     
+    private String buildScanStartResponse(Map<String, Object> scanConfig, String taskId) {
+        var sb = new StringBuilder();
+        sb.append("🚀 Advanced Security Scan Started\n");
+        sb.append("=".repeat(40)).append("\n\n");
+        
+        sb.append("📋 Scan Configuration:\n");
+        sb.append("   URL: %s\n".formatted(scanConfig.get("url")));
+        sb.append("   Type: %s\n".formatted(scanConfig.get("scanType")));
+        sb.append("   Scope: %s\n".formatted(scanConfig.get("scope")));
+        sb.append("   Max Depth: %s\n".formatted(scanConfig.get("maxDepth")));
+        sb.append("   Include Static: %s\n".formatted(scanConfig.get("includeStatic")));
+        sb.append("   Aggressive Mode: %s\n".formatted(scanConfig.get("aggressive")));
+        sb.append("   Skip Slow Checks: %s\n".formatted(scanConfig.get("skipSlowChecks")));
+        
+        if (scanConfig.containsKey("authentication")) {
+            @SuppressWarnings("unchecked")
+            var auth = (Map<String, String>) scanConfig.get("authentication");
+            sb.append("   Authentication: %s\n".formatted(auth.get("type")));
+        }
+        
+        sb.append("\n🎯 Task ID: %s\n\n".formatted(taskId));
+        
+        // Add scan type specific information
+        switch (scanConfig.get("scanType").toString()) {
+            case "passive" -> sb.append("📊 Passive scan will analyze existing proxy traffic without sending new requests.\n");
+            case "active" -> sb.append("🔍 Active scan will probe for vulnerabilities by sending test requests.\n");
+            case "full" -> sb.append("🔍 Full scan combines crawling, passive analysis, and active vulnerability testing.\n");
+            case "targeted" -> sb.append("🎯 Targeted scan focuses on specific vulnerability classes for faster results.\n");
+            case "light" -> sb.append("⚡ Light scan performs essential checks with minimal impact.\n");
+            case "comprehensive" -> sb.append("🔬 Comprehensive scan includes all available security tests (may take longer).\n");
+        }
+        
+        sb.append("\n✅ The scan is now running in BurpSuite. Check the Dashboard > Tasks for progress.\n");
+        sb.append("💡 Use 'get_scan_results' with task ID %s to retrieve results when complete.".formatted(taskId));
+        
+        return sb.toString();
+    }
+    
     private McpMessage handleGetScanResults(Object id, JsonNode arguments) {
         var taskId = arguments.has("taskId") ? arguments.get("taskId").asText() : null;
         
+        // Parse filtering and formatting options
+        var filterConfig = new HashMap<String, Object>();
+        filterConfig.put("taskId", taskId);
+        
+        if (arguments.has("severityFilter") && arguments.get("severityFilter").isArray()) {
+            var severities = new ArrayList<String>();
+            arguments.get("severityFilter").forEach(node -> severities.add(node.asText()));
+            filterConfig.put("severityFilter", severities);
+        }
+        
+        if (arguments.has("vulnerabilityType") && arguments.get("vulnerabilityType").isArray()) {
+            var vulnTypes = new ArrayList<String>();
+            arguments.get("vulnerabilityType").forEach(node -> vulnTypes.add(node.asText()));
+            filterConfig.put("vulnerabilityType", vulnTypes);
+        }
+        
+        filterConfig.put("includeRemediation", arguments.has("includeRemediation") ? arguments.get("includeRemediation").asBoolean() : true);
+        filterConfig.put("includeEvidence", arguments.has("includeEvidence") ? arguments.get("includeEvidence").asBoolean() : true);
+        filterConfig.put("sortBy", arguments.has("sortBy") ? arguments.get("sortBy").asText() : "severity");
+        filterConfig.put("format", arguments.has("format") ? arguments.get("format").asText() : "detailed");
+        filterConfig.put("limit", arguments.has("limit") ? arguments.get("limit").asInt() : 100);
+        
         try {
-            var results = burpIntegration.getScanResults(taskId);
-            var resultText = formatScanResults(results, taskId);
+            var results = burpIntegration.getFilteredScanResults(filterConfig);
+            var resultText = formatEnhancedScanResults(results, filterConfig);
             
             return createSuccessResponse(id, Map.of(
                 "content", List.of(Map.of(
@@ -729,6 +914,222 @@ public class McpProtocolHandler {
             }
             sb.append("\n");
         }
+        
+        return sb.toString();
+    }
+    
+    private String formatEnhancedScanResults(List<Map<String, Object>> results, Map<String, Object> filterConfig) {
+        if (results.isEmpty()) {
+            var taskId = filterConfig.get("taskId");
+            return taskId != null ? 
+                "No results found for task ID: " + taskId :
+                "No scan results available matching the specified filters.";
+        }
+        
+        var format = filterConfig.get("format").toString();
+        var includeRemediation = (Boolean) filterConfig.get("includeRemediation");
+        var includeEvidence = (Boolean) filterConfig.get("includeEvidence");
+        
+        return switch (format) {
+            case "summary" -> formatScanResultsSummary(results);
+            case "csv" -> formatScanResultsCsv(results);
+            case "json" -> formatScanResultsJson(results);
+            default -> formatScanResultsDetailed(results, includeRemediation, includeEvidence);
+        };
+    }
+    
+    private String formatScanResultsDetailed(List<Map<String, Object>> results, boolean includeRemediation, boolean includeEvidence) {
+        var sb = new StringBuilder();
+        sb.append("📋 Enhanced Scan Results Analysis\n");
+        sb.append("=".repeat(50)).append("\n\n");
+        
+        // Calculate statistics
+        var stats = calculateScanStatistics(results);
+        sb.append("📊 Security Assessment Summary:\n");
+        sb.append("   Total Findings: %d\n".formatted(stats.get("total")));
+        sb.append("   Critical: %d | High: %d | Medium: %d | Low: %d\n\n"
+            .formatted(stats.get("critical"), stats.get("high"), stats.get("medium"), stats.get("low")));
+        
+        // Risk assessment
+        var riskLevel = assessOverallRisk(stats);
+        sb.append("🎯 Overall Risk Level: %s\n\n".formatted(riskLevel));
+        
+        sb.append("🔍 Detailed Findings:\n");
+        sb.append("-".repeat(30)).append("\n\n");
+        
+        for (var result : results) {
+            if (result.containsKey("findings")) {
+                @SuppressWarnings("unchecked")
+                var findings = (List<Map<String, Object>>) result.get("findings");
+                
+                for (int i = 0; i < findings.size(); i++) {
+                    var finding = findings.get(i);
+                    var severity = finding.get("severity").toString();
+                    var severityIcon = getSeverityIcon(severity);
+                    
+                    sb.append("%s [%d/%d] %s\n".formatted(severityIcon, i + 1, findings.size(), finding.get("name")));
+                    sb.append("   🎯 Severity: %s".formatted(severity));
+                    if (finding.containsKey("confidence")) {
+                        sb.append(" | Confidence: %s".formatted(finding.get("confidence")));
+                    }
+                    sb.append("\n");
+                    
+                    if (finding.containsKey("url")) {
+                        sb.append("   🔗 URL: %s\n".formatted(finding.get("url")));
+                    }
+                    if (finding.containsKey("parameter")) {
+                        sb.append("   🔑 Parameter: %s\n".formatted(finding.get("parameter")));
+                    }
+                    
+                    sb.append("   📄 Description: %s\n".formatted(finding.get("description")));
+                    
+                    if (includeEvidence && finding.containsKey("evidence")) {
+                        sb.append("   🔍 Evidence: %s\n".formatted(finding.get("evidence")));
+                    }
+                    
+                    if (includeRemediation && finding.containsKey("remediation")) {
+                        sb.append("   ⚙️ Remediation: %s\n".formatted(finding.get("remediation")));
+                    }
+                    
+                    if (finding.containsKey("cweId")) {
+                        sb.append("   📚 CWE-%s: https://cwe.mitre.org/data/definitions/%s.html\n"
+                            .formatted(finding.get("cweId"), finding.get("cweId")));
+                    }
+                    
+                    sb.append("\n");
+                }
+            }
+        }
+        
+        // Add recommendations
+        sb.append(addSecurityRecommendations(stats));
+        
+        return sb.toString();
+    }
+    
+    private String formatScanResultsSummary(List<Map<String, Object>> results) {
+        var sb = new StringBuilder();
+        sb.append("📈 Scan Results Summary\n");
+        sb.append("=".repeat(30)).append("\n\n");
+        
+        var stats = calculateScanStatistics(results);
+        var total = (Integer) stats.get("total");
+        
+        sb.append("Total Findings: %d\n".formatted(total));
+        sb.append("Risk Distribution:\n");
+        sb.append("  ❌ Critical: %d (%.1f%%)\n".formatted(stats.get("critical"), (stats.get("critical") * 100.0 / total)));
+        sb.append("  ⚠️ High: %d (%.1f%%)\n".formatted(stats.get("high"), (stats.get("high") * 100.0 / total)));
+        sb.append("  🟡 Medium: %d (%.1f%%)\n".formatted(stats.get("medium"), (stats.get("medium") * 100.0 / total)));
+        sb.append("  🟢 Low: %d (%.1f%%)\n\n".formatted(stats.get("low"), (stats.get("low") * 100.0 / total)));
+        
+        sb.append("Overall Risk: %s\n".formatted(assessOverallRisk(stats)));
+        
+        return sb.toString();
+    }
+    
+    private String formatScanResultsCsv(List<Map<String, Object>> results) {
+        var sb = new StringBuilder();
+        sb.append("Name,Severity,Confidence,URL,Parameter,Description,CWE\n");
+        
+        for (var result : results) {
+            if (result.containsKey("findings")) {
+                @SuppressWarnings("unchecked")
+                var findings = (List<Map<String, Object>>) result.get("findings");
+                
+                for (var finding : findings) {
+                    sb.append("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n"
+                        .formatted(
+                            finding.getOrDefault("name", ""),
+                            finding.getOrDefault("severity", ""),
+                            finding.getOrDefault("confidence", ""),
+                            finding.getOrDefault("url", ""),
+                            finding.getOrDefault("parameter", ""),
+                            finding.getOrDefault("description", "").toString().replace("\"", "\\\""),
+                            finding.getOrDefault("cweId", "")
+                        ));
+                }
+            }
+        }
+        
+        return sb.toString();
+    }
+    
+    private String formatScanResultsJson(List<Map<String, Object>> results) {
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(results);
+        } catch (Exception e) {
+            return "{\"error\": \"Failed to format as JSON: " + e.getMessage() + "\"}";
+        }
+    }
+    
+    private Map<String, Integer> calculateScanStatistics(List<Map<String, Object>> results) {
+        var stats = new HashMap<String, Integer>();
+        stats.put("total", 0);
+        stats.put("critical", 0);
+        stats.put("high", 0);
+        stats.put("medium", 0);
+        stats.put("low", 0);
+        
+        for (var result : results) {
+            if (result.containsKey("findings")) {
+                @SuppressWarnings("unchecked")
+                var findings = (List<Map<String, Object>>) result.get("findings");
+                
+                for (var finding : findings) {
+                    stats.put("total", stats.get("total") + 1);
+                    var severity = finding.get("severity").toString().toLowerCase();
+                    stats.put(severity, stats.getOrDefault(severity, 0) + 1);
+                }
+            }
+        }
+        
+        return stats;
+    }
+    
+    private String assessOverallRisk(Map<String, Integer> stats) {
+        if (stats.get("critical") > 0) return "CRITICAL ❌";
+        if (stats.get("high") > 2) return "HIGH ⚠️";
+        if (stats.get("high") > 0 || stats.get("medium") > 5) return "MODERATE 🟡";
+        if (stats.get("medium") > 0 || stats.get("low") > 10) return "LOW 🟢";
+        return "MINIMAL ✅";
+    }
+    
+    private String getSeverityIcon(String severity) {
+        return switch (severity.toLowerCase()) {
+            case "critical" -> "❌";
+            case "high" -> "⚠️";
+            case "medium" -> "🟡";
+            case "low" -> "🟢";
+            default -> "🔵";
+        };
+    }
+    
+    private String addSecurityRecommendations(Map<String, Integer> stats) {
+        var sb = new StringBuilder();
+        sb.append("💡 Security Recommendations:\n");
+        sb.append("-".repeat(30)).append("\n");
+        
+        if (stats.get("critical") > 0) {
+            sb.append("⚠️  URGENT: Address all Critical vulnerabilities immediately\n");
+            sb.append("   - These pose immediate risk to application security\n");
+            sb.append("   - Consider taking the application offline until fixed\n\n");
+        }
+        
+        if (stats.get("high") > 0) {
+            sb.append("🔴 HIGH PRIORITY: Fix High-severity issues within 24-48 hours\n");
+            sb.append("   - Focus on authentication and injection vulnerabilities\n\n");
+        }
+        
+        if (stats.get("medium") > 0) {
+            sb.append("🟡 MEDIUM: Plan fixes for Medium-severity issues within 1-2 weeks\n");
+            sb.append("   - Include in next development sprint\n\n");
+        }
+        
+        sb.append("🔒 General Security Measures:\n");
+        sb.append("   - Implement regular security scanning\n");
+        sb.append("   - Use security headers (HSTS, CSP, X-Frame-Options)\n");
+        sb.append("   - Keep frameworks and dependencies updated\n");
+        sb.append("   - Implement proper input validation and output encoding\n\n");
         
         return sb.toString();
     }
