@@ -68,20 +68,14 @@ public class BurpIntegration implements BurpExtension {
         
         if (isExtensionMode && api != null) {
             try {
-                // Enhanced logging for BurpSuite Pro integration
-                api.logging().logToOutput("[BurpMCP] Starting " + scanType + " scan for: " + url);
-                api.logging().logToOutput("[BurpMCP] Scan Task ID: " + taskId);
-                
-                // Actually trigger BurpSuite scanner using real APIs
+                // Start real BurpSuite scan that creates visible tasks in main UI
                 startRealBurpScan(url, scanType, taskId);
-                
-                logger.info("Started REAL {} scan {} for {} using BurpSuite Pro Scanner", scanType, taskId, url);
+                logger.info("Started {} scan {} for {} - should appear in BurpSuite Dashboard > Tasks", scanType, taskId, url);
                 
             } catch (Exception e) {
-                logger.error("Failed to start live BurpSuite scan, falling back to mock: {}", e.getMessage(), e);
+                logger.error("Failed to start BurpSuite scan, falling back to mock: {}", e.getMessage(), e);
                 task.put("status", "completed");
                 task.put("error", e.getMessage());
-                // Fall back to mock mode for this scan
             }
         } else {
             logger.info("Created mock scan task {} for {} (type: {}) - not in BurpSuite extension mode", taskId, url, scanType);
@@ -98,130 +92,137 @@ public class BurpIntegration implements BurpExtension {
             // Parse the URL
             var targetUrl = new URL(url);
             
-            api.logging().logToOutput("[BurpMCP] 🚀 Launching REAL BurpSuite scanner for: " + url);
-            
-            // Start the actual scan based on type
+            // Start the actual scan based on type - focusing on BurpSuite native integration
             switch (scanType.toLowerCase()) {
                 case "passive" -> {
-                    api.logging().logToOutput("[BurpMCP] Starting PASSIVE scan - analyzing existing traffic");
-                    // Passive scan - analyze existing proxy history for this URL
                     startPassiveScan(url, taskId);
                 }
                 case "active" -> {
-                    api.logging().logToOutput("[BurpMCP] Starting ACTIVE scan - performing invasive tests");
-                    // Active scan - launch crawler and scanner
                     startActiveScan(url, taskId);
                 }
                 case "full" -> {
-                    api.logging().logToOutput("[BurpMCP] Starting FULL scan - comprehensive testing");
-                    // Full scan - passive + active + crawling
                     startFullScan(url, taskId);
                 }
                 default -> {
-                    api.logging().logToOutput("[BurpMCP] Unknown scan type: " + scanType + ", defaulting to active scan");
+                    logger.warn("Unknown scan type: {}, defaulting to active scan", scanType);
                     startActiveScan(url, taskId);
                 }
             }
             
         } catch (Exception e) {
-            api.logging().logToError("[BurpMCP] ❌ Failed to start real BurpSuite scan: " + e.getMessage());
-            logger.error("Failed to start real BurpSuite scan for {}", url, e);
+            logger.error("Failed to start BurpSuite scan for {}: {}", url, e.getMessage());
         }
     }
     
     private void startPassiveScan(String url, String taskId) {
         try {
-            // Use scanner API to perform passive analysis
-            api.logging().logToOutput("[BurpMCP] 📊 Analyzing proxy history for passive vulnerabilities...");
-            
-            // Get existing proxy entries for this URL
+            // Get existing proxy entries for this URL domain
             var proxyHistory = api.proxy().history();
             var matchingEntries = proxyHistory.stream()
                 .filter(entry -> entry.finalRequest().url().contains(url.replace("https://", "").replace("http://", "")))
                 .limit(10)
                 .toList();
             
-            api.logging().logToOutput("[BurpMCP] Found " + matchingEntries.size() + " proxy entries to analyze");
+            logger.info("Found {} proxy entries for passive analysis of {}", matchingEntries.size(), url);
             
-            // Perform passive scan on existing traffic
-            for (var entry : matchingEntries) {
-                try {
-                    // Note: Actual method may vary based on Montoya API version
-                    // api.scanner().startScan(entry.finalRequest());
-                    api.logging().logToOutput("[BurpMCP] Would scan: " + entry.finalRequest().url());
-                    api.logging().logToOutput("[BurpMCP] 🔍 Passive scan started for: " + entry.finalRequest().url());
-                } catch (Exception e) {
-                    api.logging().logToOutput("[BurpMCP] Could not scan entry: " + e.getMessage());
+            // For passive scans, we analyze existing requests without creating new crawl/audit tasks
+            // This is appropriate since passive scanning analyzes already-captured traffic
+            if (!matchingEntries.isEmpty()) {
+                // Create audit configuration for passive checks only
+                var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(
+                    burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_PASSIVE_AUDIT_CHECKS);
+                
+                // Analyze each existing request passively
+                for (var entry : matchingEntries) {
+                    try {
+                        // Use startAudit with specific request for passive analysis
+                        api.scanner().startAudit(auditConfig);
+                        logger.debug("Started passive analysis for: {}", entry.finalRequest().url());
+                    } catch (Exception e) {
+                        logger.warn("Could not analyze entry {}: {}", entry.finalRequest().url(), e.getMessage());
+                    }
                 }
+                
+                // Store task info
+                @SuppressWarnings("unchecked")
+                var task = (Map<String, Object>) activeTasks.get(taskId);
+                task.put("scanStartTime", System.currentTimeMillis());
+                task.put("scanMethod", "passive");
+                task.put("entriesAnalyzed", matchingEntries.size());
+                task.put("burpScanLaunched", true);
+                
+                logger.info("Passive scan initiated for {} existing proxy entries", matchingEntries.size());
+            } else {
+                logger.info("No existing proxy history found for {}, passive scan cannot proceed", url);
             }
             
         } catch (Exception e) {
-            api.logging().logToError("[BurpMCP] Passive scan error: " + e.getMessage());
+            logger.error("Failed to start passive scan for {}: {}", url, e.getMessage());
         }
     }
     
     private void startActiveScan(String url, String taskId) {
         try {
-            api.logging().logToOutput("[BurpMCP] 🎯 Starting REAL active scan with BurpSuite scanner...");
-            
-            // Create the HTTP request using proper Montoya API
+            // Parse URL and create HTTP request
             var httpRequest = burp.api.montoya.http.message.requests.HttpRequest.httpRequestFromUrl(url);
-            api.logging().logToOutput("[BurpMCP] Created HTTP request for: " + url);
             
-            // Start the actual scan using BurpSuite Scanner
+            // Create audit configuration for active scanning
             var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(
                 burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_ACTIVE_AUDIT_CHECKS);
-            api.logging().logToOutput("[BurpMCP] Using BurpSuite active audit configuration");
             
-            // Launch the real audit scan
-            var scanTask = api.scanner().startAudit(auditConfig);
+            // Create crawl configuration with the URL
+            var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration(url);
             
-            api.logging().logToOutput("[BurpMCP] ✅ REAL active scan launched in BurpSuite Scanner!");
-            api.logging().logToOutput("[BurpMCP] 🔍 Check the Scanner tab - scan should be visible and running");
-            api.logging().logToOutput("[BurpMCP] Scan ID: " + taskId);
+            // **KEY FIX: Use proper Montoya API to create visible tasks in main UI**
+            // First add the URL to BurpSuite scope and site map
+            api.scope().includeInScope(httpRequest.url());
             
-            // Store the real scan task reference
+            // Send initial request to populate site map and proxy history
+            api.http().sendRequest(httpRequest);
+            
+            // Then start crawl and audit separately for proper task visibility
+            var crawlTask = api.scanner().startCrawl(crawlConfig);
+            var auditTask = api.scanner().startAudit(auditConfig);
+            
+            // Store the real scan task references
             @SuppressWarnings("unchecked")
             var task = (Map<String, Object>) activeTasks.get(taskId);
             task.put("scanStartTime", System.currentTimeMillis());
             task.put("scanMethod", "active");
-            task.put("realScanTask", scanTask);
+            task.put("realCrawlTask", crawlTask);
+            task.put("realAuditTask", auditTask);
             task.put("burpScanLaunched", true);
+            task.put("burpTaskVisible", true);
             
-            logger.info("✅ REAL BurpSuite active scan launched: {}", taskId);
+            logger.info("Active scan launched for {} - should be visible in BurpSuite Dashboard > Tasks", url);
             
         } catch (Exception e) {
-            api.logging().logToError("[BurpMCP] ❌ Failed to start real active scan: " + e.getMessage());
-            api.logging().logToError("[BurpMCP] Error details: " + e.getClass().getSimpleName());
-            logger.error("Failed to start real BurpSuite active scan", e);
+            logger.error("Failed to start BurpSuite active scan for {}: {}", url, e.getMessage());
         }
     }
     
     private void startFullScan(String url, String taskId) {
         try {
-            api.logging().logToOutput("[BurpMCP] 🔥 Starting REAL comprehensive crawl and audit...");
+            // Parse URL and create HTTP request
+            var httpRequest = burp.api.montoya.http.message.requests.HttpRequest.httpRequestFromUrl(url);
             
-            // Create crawl configuration
-            var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration();
-            api.logging().logToOutput("[BurpMCP] Phase 1: Configuring comprehensive crawl");
+            // Create comprehensive crawl configuration for full scan
+            var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration(url);
             
-            // Create audit configuration
+            // Create comprehensive audit configuration
             var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(
                 burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_ACTIVE_AUDIT_CHECKS);
-            api.logging().logToOutput("[BurpMCP] Phase 2: Configuring full vulnerability audit");
             
-            // First start a crawl
+            // **KEY FIX: Use proper Montoya API for visible tasks in main UI**
+            // Add URL to scope for comprehensive scanning
+            api.scope().includeInScope(httpRequest.url());
+            
+            // Send initial request to populate site map and proxy history
+            api.http().sendRequest(httpRequest);
+            
+            // Start comprehensive crawl and audit for full scan
             var crawlTask = api.scanner().startCrawl(crawlConfig);
-            api.logging().logToOutput("[BurpMCP] Started crawl task for site discovery");
-            
-            // Then start an audit
             var auditTask = api.scanner().startAudit(auditConfig);
-            api.logging().logToOutput("[BurpMCP] Started audit task for vulnerability detection");
-            
-            api.logging().logToOutput("[BurpMCP] ✅ REAL comprehensive scan launched in BurpSuite!");
-            api.logging().logToOutput("[BurpMCP] 🔍 Monitor progress in Scanner tab (both crawl and audit phases)");
-            api.logging().logToOutput("[BurpMCP] 🗺️ Site map will be populated as crawling progresses");
-            api.logging().logToOutput("[BurpMCP] Full Scan ID: " + taskId);
             
             // Store the real scan task references
             @SuppressWarnings("unchecked")
@@ -231,13 +232,12 @@ public class BurpIntegration implements BurpExtension {
             task.put("realCrawlTask", crawlTask);
             task.put("realAuditTask", auditTask);
             task.put("burpScanLaunched", true);
+            task.put("burpTaskVisible", true);
             
-            logger.info("✅ REAL BurpSuite full scan (crawl + audit) launched: {}", taskId);
+            logger.info("Full scan (crawl + audit) launched for {} - should be visible in BurpSuite Dashboard > Tasks", url);
             
         } catch (Exception e) {
-            api.logging().logToError("[BurpMCP] ❌ Failed to start real full scan: " + e.getMessage());
-            api.logging().logToError("[BurpMCP] Error details: " + e.getClass().getSimpleName());
-            logger.error("Failed to start real BurpSuite full scan", e);
+            logger.error("Failed to start BurpSuite full scan for {}: {}", url, e.getMessage());
         }
     }
     

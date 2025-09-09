@@ -30,8 +30,8 @@ repositories {
 }
 
 dependencies {
-    // BurpSuite Montoya API from local JAR file
-    implementation files('libs/montoya-api.jar')
+    // BurpSuite Montoya API from local JAR file (latest from BurpSuite Pro)
+    implementation files('libs/montoya-api-latest.jar')
     
     // JSON processing for MCP protocol
     implementation 'com.fasterxml.jackson.core:jackson-core:2.15.3'
