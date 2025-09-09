@@ -20,23 +20,31 @@ log() {
 }
 
 check_burp_connection() {
-    # Check if BurpSuite extension is running on any of the ports
+    # Check if BurpSuite MCP extension is running on any of the ports
+    # Test the actual MCP endpoint instead of just port connectivity
     for port in $BURP_PORTS; do
-        if command -v nc &> /dev/null; then
-            if nc -z "$BURP_HOST" "$port" 2>/dev/null; then
+        # Test if the MCP endpoint responds correctly
+        if command -v curl &> /dev/null; then
+            # Send a simple MCP initialize request to test the endpoint
+            local test_response=$(curl -s --max-time 3 \
+                -X POST "http://$BURP_HOST:$port/mcp" \
+                -H "Content-Type: application/json" \
+                -d '{"jsonrpc":"2.0","id":999,"method":"initialize","params":{}}' \
+                2>/dev/null)
+            
+            # Check if response contains MCP server identification
+            if echo "$test_response" | grep -q '"name":"burp-mcp-server"'; then
                 BURP_PORT="$port"  # Update the port we found
-                return 0
-            fi
-        elif command -v telnet &> /dev/null; then
-            if timeout 2 telnet "$BURP_HOST" "$port" </dev/null &>/dev/null 2>&1; then
-                BURP_PORT="$port"
+                log "✅ Found MCP server on port $port"
                 return 0
             fi
         else
-            # Fallback: try to connect with bash
-            if timeout 2 bash -c "exec 3<>/dev/tcp/$BURP_HOST/$port" &>/dev/null 2>&1; then
-                BURP_PORT="$port"
-                return 0
+            # Fallback: basic port connectivity test
+            if command -v nc &> /dev/null; then
+                if nc -z "$BURP_HOST" "$port" 2>/dev/null; then
+                    BURP_PORT="$port"
+                    return 0
+                fi
             fi
         fi
     done
