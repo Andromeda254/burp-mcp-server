@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
+import com.burp.mcp.realtime.ScanProgressMonitor;
 
 /**
  * Handles MCP protocol messages and integrates with BurpSuite functionality
@@ -92,79 +93,7 @@ public class McpProtocolHandler {
             Map.of(
                 "name", "scan_target",
                 "description", "Initiate a comprehensive security scan on a target URL with advanced options",
-                "inputSchema", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "url", Map.of(
-                            "type", "string", 
-                            "description", "Target URL to scan (e.g., https://example.com or https://example.com/path)"
-                        ),
-                        "scanType", Map.of(
-                            "type", "string",
-                            "description", "Type of scan to perform",
-                            "enum", List.of("passive", "active", "full", "targeted", "light", "comprehensive"),
-                            "default", "active"
-                        ),
-                        "scope", Map.of(
-                            "type", "string",
-                            "description", "Scan scope limitation",
-                            "enum", List.of("single_page", "directory", "subdomain", "domain", "unlimited"),
-                            "default", "directory"
-                        ),
-                        "maxDepth", Map.of(
-                            "type", "integer",
-                            "description", "Maximum crawl depth (1-10)",
-                            "minimum", 1,
-                            "maximum", 10,
-                            "default", 3
-                        ),
-                        "includeStatic", Map.of(
-                            "type", "boolean",
-                            "description", "Include static resources (CSS, JS, images) in scan",
-                            "default", false
-                        ),
-                        "aggressive", Map.of(
-                            "type", "boolean",
-                            "description", "Enable aggressive scanning modes (may be more detectable)",
-                            "default", false
-                        ),
-                        "skipSlowChecks", Map.of(
-                            "type", "boolean",
-                            "description", "Skip time-intensive vulnerability checks for faster results",
-                            "default", false
-                        ),
-                        "authentication", Map.of(
-                            "type", "object",
-                            "description", "Authentication credentials for authenticated scanning",
-                            "properties", Map.of(
-                                "type", Map.of(
-                                    "type", "string",
-                                    "enum", List.of("basic", "cookie", "bearer", "custom")
-                                ),
-                                "username", Map.of(
-                                    "type", "string"
-                                ),
-                                "password", Map.of(
-                                    "type", "string"
-                                ),
-                                "cookieName", Map.of(
-                                    "type", "string"
-                                ),
-                                "cookieValue", Map.of(
-                                    "type", "string"
-                                ),
-                                "bearerToken", Map.of(
-                                    "type", "string"
-                                ),
-                                "customHeader", Map.of(
-                                    "type", "string",
-                                    "description", "Custom header in format 'Header-Name: Value'"
-                                )
-                            )
-                        )
-                    ),
-                    "required", List.of("url")
-                )
+                "inputSchema", buildScanTargetInputSchema()
             ),
             
             // PROXY TOOLS
@@ -377,6 +306,32 @@ public class McpProtocolHandler {
                         )
                     )
                 )
+            ),
+            
+            // REAL-TIME PROGRESS MONITORING TOOLS
+            Map.of(
+                "name", "get_scan_progress",
+                "description", "Get real-time progress information for active or completed scans",
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "taskId", Map.of(
+                            "type", "string",
+                            "description", "Specific scan task ID (optional - returns all active scans if omitted)"
+                        ),
+                        "includeHistory", Map.of(
+                            "type", "boolean",
+                            "description", "Include detailed event history for the scan",
+                            "default", false
+                        ),
+                        "format", Map.of(
+                            "type", "string",
+                            "description", "Output format for progress information",
+                            "enum", List.of("summary", "detailed", "events_only"),
+                            "default", "detailed"
+                        )
+                    )
+                )
             )
         );
         
@@ -412,6 +367,9 @@ public class McpProtocolHandler {
             // SITEMAP TOOLS
             case "get_site_map" -> handleGetSiteMap(request.getId(), arguments);
             
+            // PROGRESS MONITORING TOOLS
+            case "get_scan_progress" -> handleGetScanProgress(request.getId(), arguments);
+            
             default -> createErrorResponse(request.getId(), -32602, 
                 "Unknown tool: " + toolName);
         };
@@ -446,6 +404,30 @@ public class McpProtocolHandler {
             if (authNode.has("bearerToken")) authConfig.put("bearerToken", authNode.get("bearerToken").asText());
             if (authNode.has("customHeader")) authConfig.put("customHeader", authNode.get("customHeader").asText());
             scanConfig.put("authentication", authConfig);
+        }
+        
+        // Parse custom scan profile
+        if (arguments.has("customScanProfile") && arguments.get("customScanProfile").isObject()) {
+            var customProfile = parseCustomScanProfile(arguments.get("customScanProfile"));
+            scanConfig.put("customScanProfile", customProfile);
+        }
+        
+        // Parse incremental options
+        if (arguments.has("incrementalOptions") && arguments.get("incrementalOptions").isObject()) {
+            var incrementalOpts = parseIncrementalOptions(arguments.get("incrementalOptions"));
+            scanConfig.put("incrementalOptions", incrementalOpts);
+        }
+        
+        // Parse site map integration
+        if (arguments.has("siteMapIntegration") && arguments.get("siteMapIntegration").isObject()) {
+            var siteMapOpts = parseSiteMapIntegration(arguments.get("siteMapIntegration"));
+            scanConfig.put("siteMapIntegration", siteMapOpts);
+        }
+        
+        // Parse payload customization
+        if (arguments.has("payloadCustomization") && arguments.get("payloadCustomization").isObject()) {
+            var payloadOpts = parsePayloadCustomization(arguments.get("payloadCustomization"));
+            scanConfig.put("payloadCustomization", payloadOpts);
         }
         
         try {
@@ -501,6 +483,322 @@ public class McpProtocolHandler {
         sb.append("💡 Use 'get_scan_results' with task ID %s to retrieve results when complete.".formatted(taskId));
         
         return sb.toString();
+    }
+    
+    // ===== ADVANCED SCAN CONFIGURATION PARSERS =====
+    
+    private Map<String, Object> parseCustomScanProfile(JsonNode profileNode) {
+        var profile = new HashMap<String, Object>();
+        
+        profile.put("scanMode", profileNode.has("scanMode") ? profileNode.get("scanMode").asText() : "crawl_and_audit");
+        profile.put("auditProfile", profileNode.has("auditProfile") ? profileNode.get("auditProfile").asText() : "LEGACY_ACTIVE_AUDIT_CHECKS");
+        
+        // Parse crawl settings
+        if (profileNode.has("crawlSettings") && profileNode.get("crawlSettings").isObject()) {
+            var crawlNode = profileNode.get("crawlSettings");
+            var crawlSettings = new HashMap<String, Object>();
+            crawlSettings.put("maxCrawlDepth", crawlNode.has("maxCrawlDepth") ? crawlNode.get("maxCrawlDepth").asInt() : 5);
+            crawlSettings.put("followRedirects", crawlNode.has("followRedirects") ? crawlNode.get("followRedirects").asBoolean() : true);
+            crawlSettings.put("processRobotsTxt", crawlNode.has("processRobotsTxt") ? crawlNode.get("processRobotsTxt").asBoolean() : true);
+            profile.put("crawlSettings", crawlSettings);
+        }
+        
+        // Parse vulnerability focus
+        if (profileNode.has("vulnerabilityFocus") && profileNode.get("vulnerabilityFocus").isArray()) {
+            var vulnFocus = new ArrayList<String>();
+            profileNode.get("vulnerabilityFocus").forEach(node -> vulnFocus.add(node.asText()));
+            profile.put("vulnerabilityFocus", vulnFocus);
+        }
+        
+        return profile;
+    }
+    
+    private Map<String, Object> parseIncrementalOptions(JsonNode incrementalNode) {
+        var options = new HashMap<String, Object>();
+        
+        options.put("enableIncremental", incrementalNode.has("enableIncremental") ? incrementalNode.get("enableIncremental").asBoolean() : false);
+        if (incrementalNode.has("baselineTaskId")) {
+            options.put("baselineTaskId", incrementalNode.get("baselineTaskId").asText());
+        }
+        options.put("deltaMode", incrementalNode.has("deltaMode") ? incrementalNode.get("deltaMode").asText() : "comprehensive_delta");
+        if (incrementalNode.has("resumeFromCheckpoint")) {
+            options.put("resumeFromCheckpoint", incrementalNode.get("resumeFromCheckpoint").asText());
+        }
+        
+        return options;
+    }
+    
+    private Map<String, Object> parseSiteMapIntegration(JsonNode siteMapNode) {
+        var options = new HashMap<String, Object>();
+        
+        options.put("useSiteMap", siteMapNode.has("useSiteMap") ? siteMapNode.get("useSiteMap").asBoolean() : true);
+        options.put("prioritizeParameterized", siteMapNode.has("prioritizeParameterized") ? siteMapNode.get("prioritizeParameterized").asBoolean() : true);
+        options.put("excludeStaticContent", siteMapNode.has("excludeStaticContent") ? siteMapNode.get("excludeStaticContent").asBoolean() : true);
+        
+        // Parse endpoint filters
+        if (siteMapNode.has("endpointFilters") && siteMapNode.get("endpointFilters").isObject()) {
+            var filtersNode = siteMapNode.get("endpointFilters");
+            var filters = new HashMap<String, Object>();
+            
+            if (filtersNode.has("includePatterns") && filtersNode.get("includePatterns").isArray()) {
+                var includePatterns = new ArrayList<String>();
+                filtersNode.get("includePatterns").forEach(node -> includePatterns.add(node.asText()));
+                filters.put("includePatterns", includePatterns);
+            }
+            
+            if (filtersNode.has("excludePatterns") && filtersNode.get("excludePatterns").isArray()) {
+                var excludePatterns = new ArrayList<String>();
+                filtersNode.get("excludePatterns").forEach(node -> excludePatterns.add(node.asText()));
+                filters.put("excludePatterns", excludePatterns);
+            }
+            
+            options.put("endpointFilters", filters);
+        }
+        
+        return options;
+    }
+    
+    private Map<String, Object> parsePayloadCustomization(JsonNode payloadNode) {
+        var options = new HashMap<String, Object>();
+        
+        options.put("useCustomPayloads", payloadNode.has("useCustomPayloads") ? payloadNode.get("useCustomPayloads").asBoolean() : false);
+        
+        // Parse payload sets
+        if (payloadNode.has("payloadSets") && payloadNode.get("payloadSets").isArray()) {
+            var payloadSets = new ArrayList<Map<String, Object>>();
+            
+            payloadNode.get("payloadSets").forEach(setNode -> {
+                var payloadSet = new HashMap<String, Object>();
+                
+                if (setNode.has("category")) {
+                    payloadSet.put("category", setNode.get("category").asText());
+                }
+                
+                if (setNode.has("payloads") && setNode.get("payloads").isArray()) {
+                    var payloads = new ArrayList<String>();
+                    setNode.get("payloads").forEach(payload -> payloads.add(payload.asText()));
+                    payloadSet.put("payloads", payloads);
+                }
+                
+                if (setNode.has("encodings") && setNode.get("encodings").isArray()) {
+                    var encodings = new ArrayList<String>();
+                    setNode.get("encodings").forEach(encoding -> encodings.add(encoding.asText()));
+                    payloadSet.put("encodings", encodings);
+                }
+                
+                payloadSets.add(payloadSet);
+            });
+            
+            options.put("payloadSets", payloadSets);
+        }
+        
+        // Parse injection points
+        if (payloadNode.has("injectionPoints") && payloadNode.get("injectionPoints").isArray()) {
+            var injectionPoints = new ArrayList<String>();
+            payloadNode.get("injectionPoints").forEach(node -> injectionPoints.add(node.asText()));
+            options.put("injectionPoints", injectionPoints);
+        } else {
+            // Default injection points
+            options.put("injectionPoints", List.of("url_parameters", "body_parameters", "http_headers"));
+        }
+        
+        return options;
+    }
+    
+    private Map<String, Object> buildScanTargetInputSchema() {
+        var schema = new HashMap<String, Object>();
+        schema.put("type", "object");
+        
+        var properties = new HashMap<String, Object>();
+        
+        // Basic properties
+        properties.put("url", Map.of(
+            "type", "string", 
+            "description", "Target URL to scan (e.g., https://example.com or https://example.com/path)"
+        ));
+        properties.put("scanType", Map.of(
+            "type", "string",
+            "description", "Type of scan to perform",
+            "enum", List.of("passive", "active", "full", "targeted", "light", "comprehensive"),
+            "default", "active"
+        ));
+        properties.put("scope", Map.of(
+            "type", "string",
+            "description", "Scan scope limitation",
+            "enum", List.of("single_page", "directory", "subdomain", "domain", "unlimited"),
+            "default", "directory"
+        ));
+        properties.put("maxDepth", Map.of(
+            "type", "integer",
+            "description", "Maximum crawl depth (1-10)",
+            "minimum", 1,
+            "maximum", 10,
+            "default", 3
+        ));
+        properties.put("includeStatic", Map.of(
+            "type", "boolean",
+            "description", "Include static resources (CSS, JS, images) in scan",
+            "default", false
+        ));
+        properties.put("aggressive", Map.of(
+            "type", "boolean",
+            "description", "Enable aggressive scanning modes (may be more detectable)",
+            "default", false
+        ));
+        properties.put("skipSlowChecks", Map.of(
+            "type", "boolean",
+            "description", "Skip time-intensive vulnerability checks for faster results",
+            "default", false
+        ));
+        
+        // Authentication
+        properties.put("authentication", buildAuthenticationSchema());
+        
+        // Custom scan profile
+        properties.put("customScanProfile", buildCustomScanProfileSchema());
+        
+        // Other advanced options
+        properties.put("incrementalOptions", buildIncrementalOptionsSchema());
+        properties.put("siteMapIntegration", buildSiteMapIntegrationSchema());
+        properties.put("payloadCustomization", buildPayloadCustomizationSchema());
+        
+        schema.put("properties", properties);
+        schema.put("required", List.of("url"));
+        
+        return schema;
+    }
+    
+    private Map<String, Object> buildAuthenticationSchema() {
+        var authProps = new HashMap<String, Object>();
+        authProps.put("type", Map.of("type", "string", "enum", List.of("basic", "cookie", "bearer", "custom")));
+        authProps.put("username", Map.of("type", "string"));
+        authProps.put("password", Map.of("type", "string"));
+        authProps.put("cookieName", Map.of("type", "string"));
+        authProps.put("cookieValue", Map.of("type", "string"));
+        authProps.put("bearerToken", Map.of("type", "string"));
+        authProps.put("customHeader", Map.of("type", "string", "description", "Custom header in format 'Header-Name: Value'"));
+        
+        return Map.of(
+            "type", "object",
+            "description", "Authentication credentials for authenticated scanning",
+            "properties", authProps
+        );
+    }
+    
+    private Map<String, Object> buildCustomScanProfileSchema() {
+        var crawlProps = new HashMap<String, Object>();
+        crawlProps.put("maxCrawlDepth", Map.of("type", "integer", "minimum", 1, "maximum", 20, "default", 5));
+        crawlProps.put("followRedirects", Map.of("type", "boolean", "default", true));
+        crawlProps.put("processRobotsTxt", Map.of("type", "boolean", "default", true));
+        
+        var profileProps = new HashMap<String, Object>();
+        profileProps.put("scanMode", Map.of(
+            "type", "string",
+            "description", "Scan execution mode based on Montoya API",
+            "enum", List.of("crawl_only", "audit_only", "crawl_and_audit", "api_scan_only"),
+            "default", "crawl_and_audit"
+        ));
+        profileProps.put("auditProfile", Map.of(
+            "type", "string",
+            "description", "Built-in audit configuration profile",
+            "enum", List.of("LEGACY_ACTIVE_AUDIT_CHECKS", "LEGACY_PASSIVE_AUDIT_CHECKS"),
+            "default", "LEGACY_ACTIVE_AUDIT_CHECKS"
+        ));
+        profileProps.put("crawlSettings", Map.of(
+            "type", "object",
+            "description", "Crawl configuration settings",
+            "properties", crawlProps
+        ));
+        profileProps.put("vulnerabilityFocus", Map.of(
+            "type", "array",
+            "description", "Specific vulnerability categories to focus on",
+            "items", Map.of(
+                "type", "string",
+                "enum", List.of("injection", "broken_auth", "sensitive_data", "xxe", "broken_access", "security_misconfig", "xss", "insecure_deserialization", "components_vulns", "logging_monitoring")
+            )
+        ));
+        
+        return Map.of(
+            "type", "object",
+            "description", "Custom scan configuration following Montoya API patterns",
+            "properties", profileProps
+        );
+    }
+    
+    private Map<String, Object> buildIncrementalOptionsSchema() {
+        var incProps = new HashMap<String, Object>();
+        incProps.put("enableIncremental", Map.of("type", "boolean", "default", false));
+        incProps.put("baselineTaskId", Map.of("type", "string", "description", "Previous scan task ID to use as baseline"));
+        incProps.put("deltaMode", Map.of(
+            "type", "string",
+            "enum", List.of("new_endpoints_only", "changed_responses_only", "new_parameters_only", "comprehensive_delta"),
+            "default", "comprehensive_delta"
+        ));
+        incProps.put("resumeFromCheckpoint", Map.of("type", "string", "description", "Resume scan from specific checkpoint ID"));
+        
+        return Map.of(
+            "type", "object",
+            "description", "Incremental scanning configuration",
+            "properties", incProps
+        );
+    }
+    
+    private Map<String, Object> buildSiteMapIntegrationSchema() {
+        var filterProps = new HashMap<String, Object>();
+        filterProps.put("includePatterns", Map.of("type", "array", "items", Map.of("type", "string")));
+        filterProps.put("excludePatterns", Map.of("type", "array", "items", Map.of("type", "string")));
+        
+        var siteMapProps = new HashMap<String, Object>();
+        siteMapProps.put("useSiteMap", Map.of("type", "boolean", "default", true));
+        siteMapProps.put("prioritizeParameterized", Map.of("type", "boolean", "default", true));
+        siteMapProps.put("excludeStaticContent", Map.of("type", "boolean", "default", true));
+        siteMapProps.put("endpointFilters", Map.of("type", "object", "properties", filterProps));
+        
+        return Map.of(
+            "type", "object",
+            "description", "Integration with BurpSuite site map data",
+            "properties", siteMapProps
+        );
+    }
+    
+    private Map<String, Object> buildPayloadCustomizationSchema() {
+        var payloadSetProps = new HashMap<String, Object>();
+        payloadSetProps.put("category", Map.of(
+            "type", "string",
+            "enum", List.of("sql_injection", "xss", "command_injection", "path_traversal", "ldap_injection", "custom"),
+            "description", "Payload category for vulnerability testing"
+        ));
+        payloadSetProps.put("payloads", Map.of("type", "array", "items", Map.of("type", "string")));
+        payloadSetProps.put("encodings", Map.of(
+            "type", "array",
+            "items", Map.of(
+                "type", "string",
+                "enum", List.of("none", "url_encode", "html_encode", "base64", "double_url_encode", "unicode")
+            )
+        ));
+        
+        var payloadProps = new HashMap<String, Object>();
+        payloadProps.put("useCustomPayloads", Map.of("type", "boolean", "default", false));
+        payloadProps.put("payloadSets", Map.of(
+            "type", "array",
+            "description", "Custom payload configurations",
+            "items", Map.of("type", "object", "properties", payloadSetProps)
+        ));
+        payloadProps.put("injectionPoints", Map.of(
+            "type", "array",
+            "description", "Specific injection points to target",
+            "items", Map.of(
+                "type", "string",
+                "enum", List.of("url_path", "url_parameters", "body_parameters", "http_headers", "cookies", "json_values", "xml_attributes", "multipart_data")
+            ),
+            "default", List.of("url_parameters", "body_parameters", "http_headers")
+        ));
+        
+        return Map.of(
+            "type", "object",
+            "description", "Custom payload sets and injection techniques",
+            "properties", payloadProps
+        );
     }
     
     private McpMessage handleGetScanResults(Object id, JsonNode arguments) {
@@ -719,6 +1017,55 @@ public class McpProtocolHandler {
         } catch (Exception e) {
             logger.error("Failed to get site map", e);
             return createErrorResponse(id, -32603, "Failed to retrieve site map: " + e.getMessage());
+        }
+    }
+    
+    // ===== PROGRESS MONITORING TOOL HANDLERS =====
+    
+    private McpMessage handleGetScanProgress(Object id, JsonNode arguments) {
+        var taskId = arguments.has("taskId") ? arguments.get("taskId").asText() : null;
+        var includeHistory = arguments.has("includeHistory") ? arguments.get("includeHistory").asBoolean() : false;
+        var format = arguments.has("format") ? arguments.get("format").asText() : "detailed";
+        
+        try {
+            var progressMonitor = burpIntegration.getProgressMonitor();
+            
+            if (taskId != null) {
+                // Get progress for specific task
+                var progress = progressMonitor.getCurrentProgress(taskId);
+                if (progress == null) {
+                    return createSuccessResponse(id, Map.of(
+                        "content", List.of(Map.of(
+                            "type", "text",
+                            "text", "❌ Scan task not found: " + taskId
+                        ))
+                    ));
+                }
+                
+                var responseText = formatScanProgress(progress, includeHistory, format, progressMonitor);
+                
+                return createSuccessResponse(id, Map.of(
+                    "content", List.of(Map.of(
+                        "type", "text",
+                        "text", responseText
+                    ))
+                ));
+            } else {
+                // Get all active scan progresses
+                var allProgresses = progressMonitor.getAllActiveProgresses();
+                var responseText = formatAllScanProgresses(allProgresses, format);
+                
+                return createSuccessResponse(id, Map.of(
+                    "content", List.of(Map.of(
+                        "type", "text",
+                        "text", responseText
+                    ))
+                ));
+            }
+            
+        } catch (Exception e) {
+            logger.error("Failed to get scan progress", e);
+            return createErrorResponse(id, -32603, "Failed to get scan progress: " + e.getMessage());
         }
     }
     
@@ -1132,6 +1479,153 @@ public class McpProtocolHandler {
         sb.append("   - Implement proper input validation and output encoding\n\n");
         
         return sb.toString();
+    }
+    
+    private String formatScanProgress(ScanProgressMonitor.ScanProgressInfo progress, boolean includeHistory, String format, ScanProgressMonitor progressMonitor) {
+        var sb = new StringBuilder();
+        
+        // Header
+        sb.append("📈 Real-time Scan Progress\n");
+        sb.append("=".repeat(40)).append("\n\n");
+        
+        // Basic information
+        sb.append("🎯 Task ID: %s\n".formatted(progress.taskId()));
+        sb.append("🔗 Target: %s\n".formatted(progress.url()));
+        sb.append("🔍 Scan Type: %s\n".formatted(progress.scanType().toUpperCase()));
+        sb.append("📅 Started: %s\n\n".formatted(formatTimestamp(progress.startTime())));
+        
+        // Progress indicators
+        var statusIcon = getStatusIcon(progress.status());
+        sb.append("%s Status: %s\n".formatted(statusIcon, progress.status()));
+        
+        // Progress bar
+        var progressBar = createProgressBar(progress.progressPercent());
+        sb.append("📊 Progress: [%s] %.1f%%\n".formatted(progressBar, progress.progressPercent()));
+        
+        // Statistics
+        sb.append("\n📊 Scan Statistics:\n");
+        sb.append("   🚨 Vulnerabilities Found: %d\n".formatted(progress.vulnerabilitiesFound()));
+        sb.append("   📫 Requests Sent: %d\n".formatted(progress.requestsSent()));
+        
+        // Timing information
+        var elapsedSeconds = java.time.Instant.now().getEpochSecond() - progress.startTime().getEpochSecond();
+        var elapsedTime = formatDuration(elapsedSeconds);
+        sb.append("   ⏱️ Elapsed Time: %s\n".formatted(elapsedTime));
+        
+        if (progress.progressPercent() < 100 && progress.progressPercent() > 0) {
+            var estimatedRemaining = estimateRemainingTime(progress.progressPercent(), elapsedSeconds);
+            sb.append("   🕰️ Estimated Remaining: %s\n".formatted(estimatedRemaining));
+        }
+        
+        // Event history if requested
+        if (includeHistory) {
+            sb.append("\n📅 Event History:\n");
+            sb.append("-".repeat(30)).append("\n");
+            
+            var events = progressMonitor.getEventHistory(progress.taskId());
+            for (var event : events) {
+                var eventTime = formatTimestamp(event.timestamp());
+                sb.append("[%s] %s\n".formatted(eventTime, formatEventDescription(event)));
+            }
+        }
+        
+        return sb.toString();
+    }
+    
+    private String formatAllScanProgresses(Map<String, ScanProgressMonitor.ScanProgressInfo> allProgresses, String format) {
+        var sb = new StringBuilder();
+        
+        sb.append("📈 Active Scan Dashboard\n");
+        sb.append("=".repeat(35)).append("\n\n");
+        
+        if (allProgresses.isEmpty()) {
+            sb.append("🔄 No active scans found.\n");
+            sb.append("💡 Use 'scan_target' to start a new security scan.\n");
+            return sb.toString();
+        }
+        
+        sb.append("📊 Total Active Scans: %d\n\n".formatted(allProgresses.size()));
+        
+        for (var progress : allProgresses.values()) {
+            var statusIcon = getStatusIcon(progress.status());
+            var progressBar = createProgressBar(progress.progressPercent());
+            
+            sb.append("🎯 %s\n".formatted(progress.taskId().substring(0, 8) + "..."));
+            sb.append("   🔗 %s\n".formatted(progress.url()));
+            sb.append("   %s %s [%s] %.1f%%\n".formatted(statusIcon, progress.status(), progressBar, progress.progressPercent()));
+            sb.append("   🚨 Vulnerabilities: %d | 📫 Requests: %d\n\n".formatted(
+                progress.vulnerabilitiesFound(), progress.requestsSent()));
+        }
+        
+        return sb.toString();
+    }
+    
+    private String getStatusIcon(String status) {
+        return switch (status.toUpperCase()) {
+            case "QUEUED" -> "🔄";
+            case "INITIALIZING" -> "⚙️";
+            case "CRAWLING" -> "🔍";
+            case "RUNNING" -> "🏃";
+            case "COMPLETED" -> "✅";
+            case "FAILED" -> "❌";
+            case "INTERRUPTED" -> "⚠️";
+            default -> "🔵";
+        };
+    }
+    
+    private String createProgressBar(double progressPercent) {
+        var totalBars = 20;
+        var filledBars = (int) (progressPercent / 100.0 * totalBars);
+        var emptyBars = totalBars - filledBars;
+        
+        return "█".repeat(filledBars) + "░".repeat(emptyBars);
+    }
+    
+    private String formatTimestamp(java.time.Instant timestamp) {
+        var formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
+            .withZone(java.time.ZoneId.systemDefault());
+        return formatter.format(timestamp);
+    }
+    
+    private String formatDuration(long seconds) {
+        if (seconds < 60) {
+            return seconds + "s";
+        } else if (seconds < 3600) {
+            var minutes = seconds / 60;
+            var remainingSeconds = seconds % 60;
+            return String.format("%dm %ds", minutes, remainingSeconds);
+        } else {
+            var hours = seconds / 3600;
+            var minutes = (seconds % 3600) / 60;
+            return String.format("%dh %dm", hours, minutes);
+        }
+    }
+    
+    private String estimateRemainingTime(double progressPercent, long elapsedSeconds) {
+        if (progressPercent <= 0) return "Calculating...";
+        
+        var totalEstimatedSeconds = (long) (elapsedSeconds / (progressPercent / 100.0));
+        var remainingSeconds = totalEstimatedSeconds - elapsedSeconds;
+        
+        if (remainingSeconds <= 0) return "Almost done";
+        
+        return formatDuration(remainingSeconds);
+    }
+    
+    private String formatEventDescription(ScanProgressMonitor.ScanProgressEvent event) {
+        return switch (event.eventType()) {
+            case "SCAN_STARTED" -> "Scan initiated and queued";
+            case "PROGRESS_UPDATE" -> String.format("Progress update: %.1f%% complete", event.progressPercent());
+            case "VULNERABILITY_FOUND" -> {
+                var data = event.data();
+                var severity = data.getOrDefault("severity", "Unknown");
+                var name = data.getOrDefault("name", "Security Issue");
+                yield String.format("🚨 %s vulnerability found: %s", severity, name);
+            }
+            case "SCAN_COMPLETED" -> "Scan completed successfully";
+            case "HEARTBEAT" -> "Connection heartbeat";
+            default -> event.eventType();
+        };
     }
     
     private String formatBurpInfo(Map<String, Object> info) {

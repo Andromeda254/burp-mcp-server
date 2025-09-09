@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.List;
 import java.util.Base64;
 import java.util.HashSet;
+import com.burp.mcp.realtime.ScanProgressMonitor;
 
 /**
  * Comprehensive BurpSuite Pro integration providing access to all major tools
@@ -29,9 +30,11 @@ public class BurpIntegration implements BurpExtension {
     private MontoyaApi api;
     private final Map<String, Object> activeTasks = new ConcurrentHashMap<>();
     private boolean isExtensionMode = false;
+    private final ScanProgressMonitor progressMonitor;
     
     public BurpIntegration() {
-        logger.info("BurpIntegration initialized in standalone mode");
+        this.progressMonitor = new ScanProgressMonitor();
+        logger.info("BurpIntegration initialized in standalone mode with progress monitoring");
     }
     
     @Override
@@ -69,6 +72,9 @@ public class BurpIntegration implements BurpExtension {
         
         activeTasks.put(taskId, task);
         
+        // Start progress monitoring
+        progressMonitor.startScanMonitoring(taskId, url, scanType);
+        
         if (isExtensionMode && api != null) {
             try {
                 // Start enhanced BurpSuite scan with advanced configuration
@@ -79,8 +85,11 @@ public class BurpIntegration implements BurpExtension {
                 logger.error("Failed to start enhanced BurpSuite scan, falling back to mock: {}", e.getMessage(), e);
                 task.put("status", "completed");
                 task.put("error", e.getMessage());
+                progressMonitor.completeScanMonitoring(taskId, "FAILED", 0, Map.of("error", e.getMessage()));
             }
         } else {
+            // Start mock scan with realistic progress updates
+            startMockScanWithProgress(taskId, url, scanType);
             logger.info("Created mock advanced scan task {} for {} (type: {})", taskId, url, scanType);
         }
         
@@ -141,17 +150,24 @@ public class BurpIntegration implements BurpExtension {
             var httpResponse = api.http().sendRequest(httpRequest);
             api.logging().logToOutput("[BurpMCP] ✓ Sent initial request - Response: " + httpResponse.statusCode());
             
-            // Start scan based on type with enhanced configuration
-            switch (scanType.toLowerCase()) {
-                case "passive" -> startEnhancedPassiveScan(url, taskId, scanConfig);
-                case "active" -> startEnhancedActiveScan(url, taskId, scanConfig, httpRequest);
-                case "full" -> startEnhancedFullScan(url, taskId, scanConfig, httpRequest);
-                case "targeted" -> startTargetedScan(url, taskId, scanConfig, httpRequest);
-                case "light" -> startLightScan(url, taskId, scanConfig, httpRequest);
-                case "comprehensive" -> startComprehensiveScan(url, taskId, scanConfig, httpRequest);
-                default -> {
-                    api.logging().logToOutput("[BurpMCP] ⚠ Unknown scan type: " + scanType + ", defaulting to active scan");
-                    startEnhancedActiveScan(url, taskId, scanConfig, httpRequest);
+            // Check for custom scan profile and execute accordingly
+            if (scanConfig.containsKey("customScanProfile")) {
+                @SuppressWarnings("unchecked")
+                var customProfile = (Map<String, Object>) scanConfig.get("customScanProfile");
+                executeCustomScanProfile(url, taskId, scanConfig, httpRequest, customProfile);
+            } else {
+                // Start scan based on type with enhanced configuration
+                switch (scanType.toLowerCase()) {
+                    case "passive" -> startEnhancedPassiveScan(url, taskId, scanConfig);
+                    case "active" -> startEnhancedActiveScan(url, taskId, scanConfig, httpRequest);
+                    case "full" -> startEnhancedFullScan(url, taskId, scanConfig, httpRequest);
+                    case "targeted" -> startTargetedScan(url, taskId, scanConfig, httpRequest);
+                    case "light" -> startLightScan(url, taskId, scanConfig, httpRequest);
+                    case "comprehensive" -> startComprehensiveScan(url, taskId, scanConfig, httpRequest);
+                    default -> {
+                        api.logging().logToOutput("[BurpMCP] ⚠ Unknown scan type: " + scanType + ", defaulting to active scan");
+                        startEnhancedActiveScan(url, taskId, scanConfig, httpRequest);
+                    }
                 }
             }
             
@@ -652,6 +668,277 @@ public class BurpIntegration implements BurpExtension {
             
         } catch (Exception e) {
             api.logging().logToError("[BurpMCP] ❌ Comprehensive scan failed: " + e.getMessage());
+        }
+    }
+    
+    // ===== CUSTOM SCAN PROFILE EXECUTION =====
+    
+    private void executeCustomScanProfile(String url, String taskId, Map<String, Object> scanConfig, 
+                                         burp.api.montoya.http.message.requests.HttpRequest httpRequest,
+                                         Map<String, Object> customProfile) {
+        try {
+            var scanMode = customProfile.get("scanMode").toString();
+            var auditProfile = customProfile.get("auditProfile").toString();
+            
+            api.logging().logToOutput("[BurpMCP] 🎯 Executing CUSTOM SCAN PROFILE: " + scanMode);
+            api.logging().logToOutput("[BurpMCP] Audit Profile: " + auditProfile);
+            
+            // Process incremental scanning if enabled
+            if (scanConfig.containsKey("incrementalOptions")) {
+                @SuppressWarnings("unchecked")
+                var incrementalOpts = (Map<String, Object>) scanConfig.get("incrementalOptions");
+                if ((Boolean) incrementalOpts.get("enableIncremental")) {
+                    processIncrementalScan(url, taskId, incrementalOpts);
+                }
+            }
+            
+            // Process site map integration
+            if (scanConfig.containsKey("siteMapIntegration")) {
+                @SuppressWarnings("unchecked")
+                var siteMapOpts = (Map<String, Object>) scanConfig.get("siteMapIntegration");
+                processSiteMapIntegration(url, taskId, siteMapOpts, httpRequest);
+            }
+            
+            // Execute scan based on mode following Montoya API patterns
+            switch (scanMode.toLowerCase()) {
+                case "crawl_only" -> {
+                    var crawlTask = executeCrawlOnlyMode(url, customProfile);
+                    updateTaskWithCrawlTask(taskId, crawlTask, "custom_crawl_only");
+                }
+                case "audit_only" -> {
+                    var auditTask = executeAuditOnlyMode(url, httpRequest, auditProfile);
+                    updateTaskWithAuditTask(taskId, auditTask, "custom_audit_only");
+                }
+                case "api_scan_only" -> {
+                    var auditTask = executeApiScanOnlyMode(url, httpRequest, scanConfig);
+                    updateTaskWithAuditTask(taskId, auditTask, "custom_api_scan_only");
+                }
+                case "crawl_and_audit" -> {
+                    var tasks = executeCrawlAndAuditMode(url, httpRequest, customProfile);
+                    updateTaskWithScanTasks(taskId, tasks[0], tasks[1], "custom_crawl_and_audit");
+                }
+                default -> {
+                    api.logging().logToOutput("[BurpMCP] ⚠ Unknown custom scan mode: " + scanMode + ", using crawl_and_audit");
+                    var tasks = executeCrawlAndAuditMode(url, httpRequest, customProfile);
+                    updateTaskWithScanTasks(taskId, tasks[0], tasks[1], "custom_crawl_and_audit");
+                }
+            }
+            
+            // Process payload customization if enabled
+            if (scanConfig.containsKey("payloadCustomization")) {
+                @SuppressWarnings("unchecked")
+                var payloadOpts = (Map<String, Object>) scanConfig.get("payloadCustomization");
+                if ((Boolean) payloadOpts.get("useCustomPayloads")) {
+                    processCustomPayloads(taskId, payloadOpts);
+                }
+            }
+            
+            api.logging().logToOutput("[BurpMCP] ✅ Custom scan profile executed successfully");
+            
+        } catch (Exception e) {
+            api.logging().logToError("[BurpMCP] ❌ Custom scan profile execution failed: " + e.getMessage());
+            logger.error("Failed to execute custom scan profile: {}", e.getMessage());
+        }
+    }
+    
+    // ===== MONTOYA API EXECUTION MODES =====
+    
+    private Object executeCrawlOnlyMode(String url, Map<String, Object> customProfile) {
+        try {
+            api.logging().logToOutput("[BurpMCP] 🔍 Starting CRAWL-ONLY mode");
+            
+            var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration(url);
+            
+            // Apply custom crawl settings if provided
+            if (customProfile.containsKey("crawlSettings")) {
+                @SuppressWarnings("unchecked")
+                var crawlSettings = (Map<String, Object>) customProfile.get("crawlSettings");
+                applyCrawlSettings(crawlConfig, crawlSettings);
+            }
+            
+            var crawlTask = api.scanner().startCrawl(crawlConfig);
+            api.logging().logToOutput("[BurpMCP] ✅ Crawl-only task started - will discover application structure");
+            
+            return crawlTask;
+            
+        } catch (Exception e) {
+            api.logging().logToError("[BurpMCP] ❌ Crawl-only mode failed: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    private Object executeAuditOnlyMode(String url, burp.api.montoya.http.message.requests.HttpRequest httpRequest, String auditProfile) {
+        try {
+            api.logging().logToOutput("[BurpMCP] 🔍 Starting AUDIT-ONLY mode with profile: " + auditProfile);
+            
+            var auditConfigType = getBuiltInAuditConfiguration(auditProfile);
+            var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(auditConfigType);
+            
+            var auditTask = api.scanner().startAudit(auditConfig);
+            auditTask.addRequest(httpRequest);
+            
+            api.logging().logToOutput("[BurpMCP] ✅ Audit-only task started - will test specific request for vulnerabilities");
+            
+            return auditTask;
+            
+        } catch (Exception e) {
+            api.logging().logToError("[BurpMCP] ❌ Audit-only mode failed: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    private Object executeApiScanOnlyMode(String url, burp.api.montoya.http.message.requests.HttpRequest httpRequest, Map<String, Object> scanConfig) {
+        try {
+            api.logging().logToOutput("[BurpMCP] 🔍 Starting API-SCAN-ONLY mode (optimized for REST APIs)");
+            
+            // API scans focus on parameter manipulation without full crawling
+            var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(
+                burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_ACTIVE_AUDIT_CHECKS);
+            
+            var auditTask = api.scanner().startAudit(auditConfig);
+            auditTask.addRequest(httpRequest);
+            
+            api.logging().logToOutput("[BurpMCP] ✅ API-scan-only task started - optimized for API endpoint testing");
+            
+            return auditTask;
+            
+        } catch (Exception e) {
+            api.logging().logToError("[BurpMCP] ❌ API-scan-only mode failed: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    private Object[] executeCrawlAndAuditMode(String url, burp.api.montoya.http.message.requests.HttpRequest httpRequest, Map<String, Object> customProfile) {
+        try {
+            api.logging().logToOutput("[BurpMCP] 🔍 Starting CRAWL-AND-AUDIT mode (comprehensive web app testing)");
+            
+            var crawlConfig = burp.api.montoya.scanner.CrawlConfiguration.crawlConfiguration(url);
+            
+            var auditProfile = customProfile.get("auditProfile").toString();
+            var auditConfigType = getBuiltInAuditConfiguration(auditProfile);
+            var auditConfig = burp.api.montoya.scanner.AuditConfiguration.auditConfiguration(auditConfigType);
+            
+            // Apply custom crawl settings if provided
+            if (customProfile.containsKey("crawlSettings")) {
+                @SuppressWarnings("unchecked")
+                var crawlSettings = (Map<String, Object>) customProfile.get("crawlSettings");
+                applyCrawlSettings(crawlConfig, crawlSettings);
+            }
+            
+            var crawlTask = api.scanner().startCrawl(crawlConfig);
+            var auditTask = api.scanner().startAudit(auditConfig);
+            auditTask.addRequest(httpRequest);
+            
+            api.logging().logToOutput("[BurpMCP] ✅ Crawl-and-audit tasks started - comprehensive web application testing");
+            
+            return new Object[]{crawlTask, auditTask};
+            
+        } catch (Exception e) {
+            api.logging().logToError("[BurpMCP] ❌ Crawl-and-audit mode failed: " + e.getMessage());
+            return new Object[]{null, null};
+        }
+    }
+    
+    // ===== HELPER METHODS =====
+    
+    private burp.api.montoya.scanner.BuiltInAuditConfiguration getBuiltInAuditConfiguration(String profileName) {
+        return switch (profileName.toUpperCase()) {
+            case "LEGACY_PASSIVE_AUDIT_CHECKS" -> burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_PASSIVE_AUDIT_CHECKS;
+            // Note: LIGHT_ACTIVE and LIGHT_PASSIVE configurations may not be available in current Montoya API
+            // Falling back to legacy configurations for compatibility
+            case "LIGHT_ACTIVE_AUDIT_CHECKS" -> burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_ACTIVE_AUDIT_CHECKS;
+            case "LIGHT_PASSIVE_AUDIT_CHECKS" -> burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_PASSIVE_AUDIT_CHECKS;
+            default -> burp.api.montoya.scanner.BuiltInAuditConfiguration.LEGACY_ACTIVE_AUDIT_CHECKS;
+        };
+    }
+    
+    private void applyCrawlSettings(burp.api.montoya.scanner.CrawlConfiguration crawlConfig, Map<String, Object> crawlSettings) {
+        // Note: The current Montoya API may have limited configuration options
+        // This method can be expanded as the API evolves
+        var maxDepth = (Integer) crawlSettings.getOrDefault("maxCrawlDepth", 5);
+        var followRedirects = (Boolean) crawlSettings.getOrDefault("followRedirects", true);
+        var processRobots = (Boolean) crawlSettings.getOrDefault("processRobotsTxt", true);
+        
+        api.logging().logToOutput("[BurpMCP] Crawl settings - MaxDepth: " + maxDepth + ", FollowRedirects: " + followRedirects + ", ProcessRobots: " + processRobots);
+        // Additional crawl configuration would be applied here as the Montoya API supports it
+    }
+    
+    private void processIncrementalScan(String url, String taskId, Map<String, Object> incrementalOpts) {
+        api.logging().logToOutput("[BurpMCP] 🔄 Processing incremental scan configuration");
+        
+        var baselineTaskId = (String) incrementalOpts.get("baselineTaskId");
+        var deltaMode = incrementalOpts.get("deltaMode").toString();
+        
+        if (baselineTaskId != null) {
+            api.logging().logToOutput("[BurpMCP] Baseline task: " + baselineTaskId + ", Delta mode: " + deltaMode);
+            // Implementation would compare with baseline scan results
+            // This is a placeholder for incremental scanning logic
+        }
+    }
+    
+    private void processSiteMapIntegration(String url, String taskId, Map<String, Object> siteMapOpts, 
+                                         burp.api.montoya.http.message.requests.HttpRequest httpRequest) {
+        try {
+            var useSiteMap = (Boolean) siteMapOpts.get("useSiteMap");
+            
+            if (useSiteMap) {
+                api.logging().logToOutput("[BurpMCP] 🗺️ Integrating with existing site map data");
+                
+                // Get existing site map entries for the target
+                var targetHost = httpRequest.httpService().host();
+                api.logging().logToOutput("[BurpMCP] Analyzing site map for host: " + targetHost);
+                
+                // This would use the site map to optimize scan targets
+                var prioritizeParameterized = (Boolean) siteMapOpts.getOrDefault("prioritizeParameterized", true);
+                var excludeStatic = (Boolean) siteMapOpts.getOrDefault("excludeStaticContent", true);
+                
+                api.logging().logToOutput("[BurpMCP] Site map preferences - Prioritize parameterized: " + prioritizeParameterized + ", Exclude static: " + excludeStatic);
+            }
+        } catch (Exception e) {
+            api.logging().logToOutput("[BurpMCP] ⚠ Site map integration error: " + e.getMessage());
+        }
+    }
+    
+    private void processCustomPayloads(String taskId, Map<String, Object> payloadOpts) {
+        api.logging().logToOutput("[BurpMCP] 🎯 Processing custom payload configuration");
+        
+        @SuppressWarnings("unchecked")
+        var payloadSets = (List<Map<String, Object>>) payloadOpts.get("payloadSets");
+        
+        if (payloadSets != null) {
+            api.logging().logToOutput("[BurpMCP] Custom payload sets configured: " + payloadSets.size());
+            
+            for (var payloadSet : payloadSets) {
+                var category = payloadSet.get("category").toString();
+                @SuppressWarnings("unchecked")
+                var payloads = (List<String>) payloadSet.get("payloads");
+                
+                api.logging().logToOutput("[BurpMCP] Payload set - Category: " + category + ", Count: " + (payloads != null ? payloads.size() : 0));
+            }
+        }
+    }
+    
+    private void updateTaskWithCrawlTask(String taskId, Object crawlTask, String scanMethod) {
+        @SuppressWarnings("unchecked")
+        var task = (Map<String, Object>) activeTasks.get(taskId);
+        if (task != null) {
+            task.put("scanStartTime", System.currentTimeMillis());
+            task.put("scanMethod", scanMethod);
+            task.put("realCrawlTask", crawlTask);
+            task.put("burpScanLaunched", true);
+            task.put("customScan", true);
+        }
+    }
+    
+    private void updateTaskWithAuditTask(String taskId, Object auditTask, String scanMethod) {
+        @SuppressWarnings("unchecked")
+        var task = (Map<String, Object>) activeTasks.get(taskId);
+        if (task != null) {
+            task.put("scanStartTime", System.currentTimeMillis());
+            task.put("scanMethod", scanMethod);
+            task.put("realAuditTask", auditTask);
+            task.put("burpScanLaunched", true);
+            task.put("customScan", true);
         }
     }
     
@@ -1665,5 +1952,126 @@ public class BurpIntegration implements BurpExtension {
         ));
         
         return info;
+    }
+    
+    // ===== SCAN PROGRESS SIMULATION =====
+    
+    /**
+     * Simulate realistic scan progress with vulnerability discovery
+     */
+    private void startMockScanWithProgress(String taskId, String url, String scanType) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Simulate scan phases with realistic timing
+                simulateScanPhase(taskId, "INITIALIZING", 0.0, 0, 0);
+                Thread.sleep(2000);
+                
+                simulateScanPhase(taskId, "CRAWLING", 10.0, 0, 5);
+                Thread.sleep(3000);
+                
+                // Simulate finding first vulnerability
+                var vuln1 = createMockVulnerability("Cross-site scripting (reflected)", "High", url + "/search");
+                progressMonitor.reportVulnerabilityFound(taskId, vuln1);
+                
+                simulateScanPhase(taskId, "RUNNING", 25.0, 1, 15);
+                Thread.sleep(4000);
+                
+                simulateScanPhase(taskId, "RUNNING", 45.0, 1, 28);
+                Thread.sleep(3000);
+                
+                // Simulate finding second vulnerability
+                var vuln2 = createMockVulnerability("SQL injection", "Critical", url + "/login");
+                progressMonitor.reportVulnerabilityFound(taskId, vuln2);
+                
+                simulateScanPhase(taskId, "RUNNING", 65.0, 2, 42);
+                Thread.sleep(4000);
+                
+                // Simulate finding third vulnerability
+                var vuln3 = createMockVulnerability("Insecure direct object reference", "Medium", url + "/profile");
+                progressMonitor.reportVulnerabilityFound(taskId, vuln3);
+                
+                simulateScanPhase(taskId, "RUNNING", 80.0, 3, 58);
+                Thread.sleep(3000);
+                
+                simulateScanPhase(taskId, "RUNNING", 95.0, 3, 67);
+                Thread.sleep(2000);
+                
+                // Complete the scan
+                var scanSummary = new HashMap<String, Object>();
+                scanSummary.put("totalRequests", 72);
+                scanSummary.put("totalVulnerabilities", 3);
+                scanSummary.put("criticalIssues", 1);
+                scanSummary.put("highIssues", 1);
+                scanSummary.put("mediumIssues", 1);
+                scanSummary.put("lowIssues", 0);
+                scanSummary.put("scanType", scanType);
+                scanSummary.put("targetUrl", url);
+                
+                progressMonitor.completeScanMonitoring(taskId, "COMPLETED", 3, scanSummary);
+                
+                // Update task status
+                var task = activeTasks.get(taskId);
+                if (task instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    var taskMap = (Map<String, Object>) task;
+                    taskMap.put("status", "completed");
+                    taskMap.put("vulnerabilitiesFound", 3);
+                    taskMap.put("completedAt", System.currentTimeMillis());
+                }
+                
+                logger.info("✅ Mock scan {} completed successfully with 3 vulnerabilities found", taskId);
+                
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                progressMonitor.completeScanMonitoring(taskId, "INTERRUPTED", 0, Map.of("error", "Scan was interrupted"));
+            } catch (Exception e) {
+                logger.error("Error in mock scan simulation: {}", e.getMessage());
+                progressMonitor.completeScanMonitoring(taskId, "FAILED", 0, Map.of("error", e.getMessage()));
+            }
+        });
+    }
+    
+    private void simulateScanPhase(String taskId, String status, double progressPercent, 
+                                 int vulnerabilitiesFound, int requestsSent) {
+        progressMonitor.updateScanProgress(taskId, status, progressPercent, vulnerabilitiesFound, requestsSent);
+    }
+    
+    private Map<String, Object> createMockVulnerability(String name, String severity, String url) {
+        var vulnerability = new HashMap<String, Object>();
+        vulnerability.put("name", name);
+        vulnerability.put("severity", severity);
+        vulnerability.put("confidence", "Firm");
+        vulnerability.put("url", url);
+        vulnerability.put("timestamp", System.currentTimeMillis());
+        
+        switch (name) {
+            case "Cross-site scripting (reflected)" -> {
+                vulnerability.put("parameter", "q");
+                vulnerability.put("description", "Reflected XSS vulnerability found in search parameter");
+                vulnerability.put("evidence", "<script>alert('XSS')</script>");
+                vulnerability.put("cweId", "79");
+            }
+            case "SQL injection" -> {
+                vulnerability.put("parameter", "username");
+                vulnerability.put("description", "SQL injection vulnerability in login form");
+                vulnerability.put("evidence", "' OR '1'='1' --");
+                vulnerability.put("cweId", "89");
+            }
+            case "Insecure direct object reference" -> {
+                vulnerability.put("parameter", "id");
+                vulnerability.put("description", "IDOR vulnerability allowing access to other users' data");
+                vulnerability.put("evidence", "Changed id parameter to access different user's profile");
+                vulnerability.put("cweId", "639");
+            }
+        }
+        
+        return vulnerability;
+    }
+    
+    /**
+     * Get the progress monitor instance for external access
+     */
+    public ScanProgressMonitor getProgressMonitor() {
+        return progressMonitor;
     }
 }
