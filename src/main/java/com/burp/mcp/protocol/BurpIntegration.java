@@ -15,6 +15,10 @@ import java.util.List;
 import java.util.Base64;
 import java.util.HashSet;
 import com.burp.mcp.realtime.ScanProgressMonitor;
+import com.burp.mcp.proxy.TrafficInterceptor;
+import com.burp.mcp.proxy.SSLCertificateAnalyzer;
+import com.burp.mcp.proxy.SafePatternMatcher;
+import com.burp.mcp.protocol.LiveTrafficAnalyzer;
 
 /**
  * Comprehensive BurpSuite Pro integration providing access to all major tools
@@ -31,6 +35,7 @@ public class BurpIntegration implements BurpExtension {
     private final Map<String, Object> activeTasks = new ConcurrentHashMap<>();
     private boolean isExtensionMode = false;
     private final ScanProgressMonitor progressMonitor;
+    private LiveTrafficAnalyzer liveTrafficAnalyzer;
     
     public BurpIntegration() {
         this.progressMonitor = new ScanProgressMonitor();
@@ -42,14 +47,18 @@ public class BurpIntegration implements BurpExtension {
         this.api = api;
         this.isExtensionMode = true;
         
+        // Initialize live traffic analyzer
+        this.liveTrafficAnalyzer = new LiveTrafficAnalyzer(api);
+        
         // Set extension name using logging API
         api.logging().logToOutput("BurpSuite MCP Server Extension loaded successfully!");
-        logger.info("BurpIntegration initialized as BurpSuite extension with Montoya API");
+        api.logging().logToOutput("Live Traffic Analyzer initialized for SSL/TLS and security analysis");
+        logger.info("BurpIntegration initialized as BurpSuite extension with Montoya API and LiveTrafficAnalyzer");
         
         // Register basic callbacks if methods are available
         try {
             // Try to register handlers, but don't fail if methods don't exist
-            logger.info("BurpSuite extension integration active");
+            logger.info("BurpSuite extension integration active with enhanced traffic analysis");
         } catch (Exception e) {
             logger.warn("Some BurpSuite integration features may not be available: {}", e.getMessage());
         }
@@ -1336,19 +1345,86 @@ public class BurpIntegration implements BurpExtension {
     }
     
     private List<Map<String, Object>> getLiveProxyHistory(int limit, String filter) {
-        // Enhanced BurpSuite Pro integration - log proxy history access
-        api.logging().logToOutput("[BurpMCP] Accessing proxy history (limit: " + limit + ", filter: " + filter + ")");
+        api.logging().logToOutput("[BurpMCP] 🚀 ENHANCED LIVE proxy history analysis with LiveTrafficAnalyzer");
         
-        // Use enhanced mock data with BurpSuite Pro context
-        var history = getMockProxyHistory(limit, filter);
+        try {
+            // Use the dedicated LiveTrafficAnalyzer for comprehensive analysis
+            return liveTrafficAnalyzer.analyzeLiveProxyHistory(limit, filter);
+            
+        } catch (Exception e) {
+            api.logging().logToError("[BurpMCP] ❌ LiveTrafficAnalyzer failed: " + e.getMessage());
+            logger.error("LiveTrafficAnalyzer failed, falling back to enhanced mock: {}", e.getMessage());
+            
+            // Fallback to enhanced mock data if live analysis fails
+            return getEnhancedMockProxyHistory(limit, filter);
+        }
+    }
+    
+    /**
+     * Analyze content with live security pattern matching
+     */
+    private Map<String, Object> analyzeWithLivePatterns(String content, String context) {
+        var patternResults = new HashMap<String, Object>();
         
-        // Add BurpSuite Pro context to each entry
-        for (var entry : history) {
-            entry.put("source", "BurpSuite Pro Proxy");
+        if (content == null || content.isEmpty()) {
+            return patternResults;
         }
         
-        api.logging().logToOutput("[BurpMCP] Retrieved " + history.size() + " proxy history entries");
-        logger.info("Retrieved {} proxy history entries from BurpSuite Pro", history.size());
+        // Test each pattern type with live analysis
+        String[] patterns = {"SQL_INJECTION", "XSS", "PATH_TRAVERSAL", "COMMAND_INJECTION", "SENSITIVE_DATA"};
+        
+        for (String pattern : patterns) {
+            try {
+                var matchResult = SafePatternMatcher.advancedMatch(pattern, content, context);
+                if (matchResult.isMatched()) {
+                    var patternData = new HashMap<String, Object>();
+                    patternData.put("matched", true);
+                    patternData.put("confidence", matchResult.getConfidence());
+                    patternData.put("severity", matchResult.getSeverity());
+                    patternData.put("matched_content", matchResult.getMatchedSubstring());
+                    patternData.put("pattern_name", matchResult.getPatternName());
+                    patternResults.put(pattern, patternData);
+                    
+                    if (api != null) {
+                        api.logging().logToOutput("[BurpMCP] 🎯 PATTERN MATCH: " + pattern + " (" + matchResult.getSeverity() + ") in " + context);
+                    }
+                }
+            } catch (Exception e) {
+                if (api != null) {
+                    api.logging().logToOutput("[BurpMCP] ⚠️  Pattern analysis failed for " + pattern + ": " + e.getMessage());
+                }
+            }
+        }
+        
+        // Add pattern compilation status for debugging
+        if (!patternResults.isEmpty()) {
+            patternResults.put("pattern_status", SafePatternMatcher.getPatternStatus());
+        }
+        
+        return patternResults;
+    }
+    
+    /**
+     * Enhanced mock proxy history with SSL/TLS analysis capabilities
+     */
+    private List<Map<String, Object>> getEnhancedMockProxyHistory(int limit, String filter) {
+        var history = new ArrayList<Map<String, Object>>();
+        
+        // Get traffic analysis summary for integration
+        var trafficSummary = TrafficInterceptor.getTrafficSummary();
+        
+        // Add summary metadata as first entry
+        var metadata = new HashMap<String, Object>();
+        metadata.put("type", "ENHANCED_MOCK_SUMMARY");
+        metadata.put("active_requests", trafficSummary.getActiveRequests());
+        metadata.put("active_responses", trafficSummary.getActiveResponses());
+        metadata.put("security_stats", Map.of(
+            "total_threats", trafficSummary.getSecurityStatistics().getTotalThreatsDetected(),
+            "high_risk_requests", trafficSummary.getSecurityStatistics().getHighRiskRequests(),
+            "ssl_issues", trafficSummary.getSecurityStatistics().getSslIssues()
+        ));
+        metadata.put("timestamp", System.currentTimeMillis());
+        history.add(metadata);
         
         return history;
     }

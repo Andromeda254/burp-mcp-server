@@ -499,10 +499,20 @@ public class AILoginSequenceRecorder {
                 Thread.sleep(5000); // Simulate user interaction time
                 
                 // Add mock steps
-                sequence.addStep(new LoginStep("navigate", targetUrl, Map.of()));
-                sequence.addStep(new LoginStep("fill_field", targetUrl, Map.of("field", "username", "value", "[USERNAME]")));
-                sequence.addStep(new LoginStep("fill_field", targetUrl, Map.of("field", "password", "value", "[PASSWORD]")));
-                sequence.addStep(new LoginStep("submit_form", targetUrl, Map.of("form", "login_form")));
+                var step1 = new LoginStep(targetUrl, "GET", "NAVIGATE");
+                sequence.addStep(step1);
+                
+                var step2 = new LoginStep(targetUrl, "POST", "FILL_FIELD");
+                step2.addFormData("username", "[USERNAME]");
+                sequence.addStep(step2);
+                
+                var step3 = new LoginStep(targetUrl, "POST", "FILL_FIELD");
+                step3.addFormData("password", "[PASSWORD]");
+                sequence.addStep(step3);
+                
+                var step4 = new LoginStep(targetUrl, "POST", "SUBMIT_FORM");
+                step4.addFormData("form", "login_form");
+                sequence.addStep(step4);
                 
                 sequence.setComplete(true);
                 

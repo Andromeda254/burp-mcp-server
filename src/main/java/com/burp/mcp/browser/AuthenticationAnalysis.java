@@ -213,6 +213,7 @@ class AuthenticationState {
     public long getTimestamp() { return timestamp; }
 }
 
+
 /**
  * Session management for recording activities
  */
