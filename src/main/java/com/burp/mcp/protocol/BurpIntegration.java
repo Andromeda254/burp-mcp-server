@@ -2074,4 +2074,8 @@ public class BurpIntegration implements BurpExtension {
     public ScanProgressMonitor getProgressMonitor() {
         return progressMonitor;
     }
+    
+    public MontoyaApi getApi() {
+        return api;
+    }
 }
