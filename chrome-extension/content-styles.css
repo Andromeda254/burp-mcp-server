@@ -1,0 +1,385 @@
+/**
+ * Burp MCP Browser Integration - Content Script Styles
+ * 
+ * Styles for any UI elements injected by the content script
+ */
+
+/* Burp MCP Extension overlay styles */
+.burp-mcp-overlay {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 999999;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.burp-mcp-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Connection status indicator */
+.burp-mcp-status {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 999998;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+    transition: all 0.3s ease;
+}
+
+.burp-mcp-status.connected {
+    background-color: #00aa00;
+    box-shadow: 0 0 8px rgba(0, 170, 0, 0.6);
+}
+
+.burp-mcp-status.disconnected {
+    background-color: #ff0000;
+    box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+}
+
+.burp-mcp-status.connecting {
+    background-color: #ffaa00;
+    animation: burp-mcp-pulse 1s infinite;
+}
+
+@keyframes burp-mcp-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Form highlighting for login detection */
+.burp-mcp-login-form {
+    outline: 2px dashed #ff6600 !important;
+    outline-offset: 2px;
+}
+
+.burp-mcp-login-field {
+    outline: 1px solid #ff6600 !important;
+    background-color: rgba(255, 102, 0, 0.1) !important;
+}
+
+/* Authentication state indicators */
+.burp-mcp-auth-indicator {
+    position: absolute;
+    top: -20px;
+    right: 0;
+    background: #333;
+    color: white;
+    padding: 2px 6px;
+    font-size: 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+
+.burp-mcp-auth-indicator.authenticated {
+    background: #00aa00;
+}
+
+.burp-mcp-auth-indicator.unauthenticated {
+    background: #666;
+}
+
+.burp-mcp-auth-indicator.login-page {
+    background: #ff6600;
+}
+
+.burp-mcp-auth-indicator.auth-failed {
+    background: #ff0000;
+}
+
+/* Security issue highlighting */
+.burp-mcp-security-issue {
+    position: relative;
+}
+
+.burp-mcp-security-issue::before {
+    content: '⚠';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff0000;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+}
+
+.burp-mcp-security-issue.high-severity::before {
+    background: #ff0000;
+}
+
+.burp-mcp-security-issue.medium-severity::before {
+    background: #ff6600;
+}
+
+.burp-mcp-security-issue.low-severity::before {
+    background: #ffaa00;
+}
+
+/* Automation overlay */
+.burp-mcp-automation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999997;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.burp-mcp-automation-message {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    max-width: 300px;
+}
+
+.burp-mcp-automation-message h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 16px;
+}
+
+.burp-mcp-automation-message p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.burp-mcp-spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #ff6600;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: burp-mcp-spin 1s linear infinite;
+    margin: 10px auto;
+}
+
+@keyframes burp-mcp-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Recording indicator */
+.burp-mcp-recording {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    z-index: 999996;
+    background: #ff0000;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    animation: burp-mcp-blink 1s infinite;
+}
+
+@keyframes burp-mcp-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.5; }
+}
+
+/* Tooltip styles */
+.burp-mcp-tooltip {
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 999995;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.burp-mcp-tooltip.show {
+    opacity: 1;
+}
+
+.burp-mcp-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -4px;
+    border: 4px solid transparent;
+    border-top-color: #333;
+}
+
+/* Element highlighting during automation */
+.burp-mcp-highlight {
+    outline: 2px solid #00aa00 !important;
+    outline-offset: 2px;
+    background-color: rgba(0, 170, 0, 0.1) !important;
+    transition: all 0.3s ease;
+}
+
+.burp-mcp-highlight-error {
+    outline: 2px solid #ff0000 !important;
+    outline-offset: 2px;
+    background-color: rgba(255, 0, 0, 0.1) !important;
+}
+
+/* Progress bar for automation tasks */
+.burp-mcp-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    z-index: 999994;
+}
+
+.burp-mcp-progress-bar {
+    height: 100%;
+    background: #00aa00;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .burp-mcp-overlay,
+    .burp-mcp-status {
+        top: 5px;
+        right: 5px;
+    }
+    
+    .burp-mcp-recording {
+        top: 25px;
+        right: 5px;
+        font-size: 10px;
+        padding: 4px 6px;
+    }
+    
+    .burp-mcp-automation-message {
+        margin: 20px;
+        max-width: calc(100vw - 40px);
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .burp-mcp-overlay {
+        background: black;
+        border: 1px solid white;
+    }
+    
+    .burp-mcp-status.connected {
+        background-color: lime;
+    }
+    
+    .burp-mcp-status.disconnected {
+        background-color: red;
+    }
+    
+    .burp-mcp-login-form {
+        outline: 3px solid orange !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .burp-mcp-status,
+    .burp-mcp-spinner,
+    .burp-mcp-recording,
+    .burp-mcp-highlight,
+    .burp-mcp-tooltip,
+    .burp-mcp-progress-bar {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .burp-mcp-automation-message {
+        background: #2a2a2a;
+        color: white;
+    }
+    
+    .burp-mcp-automation-message h3 {
+        color: white;
+    }
+    
+    .burp-mcp-automation-message p {
+        color: #ccc;
+    }
+    
+    .burp-mcp-tooltip {
+        background: #4a4a4a;
+    }
+    
+    .burp-mcp-tooltip::after {
+        border-top-color: #4a4a4a;
+    }
+}
+
+/* Print styles - hide all extension elements when printing */
+@media print {
+    .burp-mcp-overlay,
+    .burp-mcp-status,
+    .burp-mcp-recording,
+    .burp-mcp-automation-overlay,
+    .burp-mcp-tooltip,
+    .burp-mcp-progress {
+        display: none !important;
+    }
+    
+    .burp-mcp-login-form,
+    .burp-mcp-login-field,
+    .burp-mcp-highlight,
+    .burp-mcp-highlight-error {
+        outline: none !important;
+        background: transparent !important;
+    }
+}
+
+/* Accessibility improvements */
+.burp-mcp-overlay[role="status"] {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* Focus management during automation */
+.burp-mcp-automation-active * {
+    pointer-events: none;
+}
+
+.burp-mcp-automation-active input:focus,
+.burp-mcp-automation-active button:focus,
+.burp-mcp-automation-active a:focus {
+    outline: 2px solid #ff6600 !important;
+    outline-offset: 2px;
+}
