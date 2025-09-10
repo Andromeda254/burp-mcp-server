@@ -3,6 +3,8 @@ package com.burp.mcp;
 import burp.api.montoya.BurpExtension;
 import burp.api.montoya.MontoyaApi;
 import com.burp.mcp.protocol.BurpIntegration;
+import com.burp.mcp.browser.BrowserManager;
+import com.burp.mcp.browser.ChromeExtensionServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,8 @@ public class BurpMcpExtension implements BurpExtension {
     private MontoyaApi api;
     private BurpIntegration burpIntegration;
     private McpServer mcpServer;
+    private BrowserManager browserManager;
+    private ChromeExtensionServer chromeExtensionServer;
     
     @Override
     public void initialize(MontoyaApi api) {
@@ -44,6 +48,22 @@ public class BurpMcpExtension implements BurpExtension {
             // Initialize the BurpIntegration with the API
             this.burpIntegration = new BurpIntegration();
             burpIntegration.initialize(api);
+            
+            // Initialize browser integration components
+            this.browserManager = new BrowserManager(api);
+            this.chromeExtensionServer = new ChromeExtensionServer(api, browserManager);
+            
+            // Start Chrome extension server
+            boolean browserIntegrationEnabled = Boolean.parseBoolean(
+                System.getProperty("burp.mcp.browser.enabled", "true"));
+            
+            if (browserIntegrationEnabled) {
+                int extensionPort = Integer.parseInt(
+                    System.getProperty("burp.mcp.extension.port", "1337"));
+                
+                CompletableFuture.runAsync(() -> startBrowserIntegrationAsync(extensionPort))
+                    .whenComplete(this::handleBrowserIntegrationStartup);
+            }
             
             // Start MCP server in a separate thread to avoid blocking BurpSuite
             CompletableFuture.runAsync(this::startMcpServerAsync)
@@ -128,6 +148,51 @@ public class BurpMcpExtension implements BurpExtension {
         }
     }
     
+    private void startBrowserIntegrationAsync(int extensionPort) {
+        try {
+            logger.info("Starting Chrome Extension Server on port {}", extensionPort);
+            api.logging().logToOutput("[BurpMcpExtension] Starting browser integration on port " + extensionPort);
+            
+            boolean started = chromeExtensionServer.startServer(extensionPort);
+            
+            if (started) {
+                logger.info("Chrome Extension Server started successfully on port {}", extensionPort);
+                api.logging().logToOutput("[BurpMcpExtension] ✅ Chrome extension server started on port " + extensionPort);
+                api.logging().logToOutput("[BurpMcpExtension] Extension endpoint: http://localhost:" + extensionPort + "/chrome-extension");
+            } else {
+                throw new RuntimeException("Failed to start Chrome extension server on port " + extensionPort);
+            }
+            
+        } catch (Exception e) {
+            logger.error("Browser integration startup failed", e);
+            api.logging().logToError("[BurpMcpExtension] ❌ Browser integration error: " + e.getMessage());
+            throw new RuntimeException("Browser integration startup failed: " + e.getMessage(), e);
+        }
+    }
+    
+    private void handleBrowserIntegrationStartup(Void result, Throwable throwable) {
+        if (throwable != null) {
+            logger.error("Browser integration startup failed", throwable);
+            api.logging().logToError("Browser integration failed to start: " + throwable.getMessage());
+        } else {
+            var message = """
+                🌐 Browser Integration Status: Ready
+                📱 Chrome Extension Server: Active
+                🤖 AI-Assisted Login Recording: Enabled
+                🔒 Authentication State Tracking: Active
+                📸 Screenshot Capture: Available
+                
+                💡 To use browser automation:
+                   1. Install the Chrome extension from chrome-extension/
+                   2. Extension will auto-connect to Burp MCP Server
+                   3. Browse websites - login sequences will be recorded automatically
+                   4. Use 'manage_browser_session' MCP tool for automation
+                """;
+            
+            api.logging().logToOutput(message);
+        }
+    }
+    
     private void handleMcpServerStartup(Void result, Throwable throwable) {
         if (throwable != null) {
             logger.error("MCP server startup failed or timed out", throwable);
@@ -208,6 +273,25 @@ public class BurpMcpExtension implements BurpExtension {
      */
     public void terminate() {
         logger.info("🔄 Shutting down BurpSuite MCP Extension...");
+        
+        // Shutdown browser integration components
+        if (chromeExtensionServer != null) {
+            try {
+                chromeExtensionServer.stopServer();
+                logger.info("✅ Chrome extension server shut down gracefully");
+            } catch (Exception e) {
+                logger.error("❌ Error during Chrome extension server shutdown", e);
+            }
+        }
+        
+        if (browserManager != null) {
+            try {
+                browserManager.shutdown();
+                logger.info("✅ Browser manager shut down gracefully");
+            } catch (Exception e) {
+                logger.error("❌ Error during browser manager shutdown", e);
+            }
+        }
         
         if (mcpServer != null) {
             try {
