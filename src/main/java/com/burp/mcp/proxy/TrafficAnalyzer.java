@@ -3,7 +3,7 @@ package com.burp.mcp.proxy;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
-import burp.api.montoya.http.message.HttpHeader;
+import burp.api.montoya.http.message.headers.HttpHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

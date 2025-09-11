@@ -1,14 +1,14 @@
 package com.burp.mcp.proxy;
 
 import burp.api.montoya.MontoyaApi;
-import burp.api.montoya.proxy.http.ProxyRequestHandler;
-import burp.api.montoya.proxy.http.ProxyResponseHandler;
-import burp.api.montoya.proxy.http.InterceptedRequest;
-import burp.api.montoya.proxy.http.InterceptedResponse;
-import burp.api.montoya.proxy.http.ProxyRequestReceivedAction;
-import burp.api.montoya.proxy.http.ProxyRequestToBeSentAction;
-import burp.api.montoya.proxy.http.ProxyResponseReceivedAction;
-import burp.api.montoya.proxy.http.ProxyResponseToBeSentAction;
+import burp.api.montoya.proxy.ProxyHttpRequestHandler;
+import burp.api.montoya.proxy.ProxyHttpResponseHandler;
+import burp.api.montoya.proxy.InterceptedHttpRequest;
+import burp.api.montoya.proxy.InterceptedHttpResponse;
+import burp.api.montoya.proxy.RequestInitialInterceptResult;
+import burp.api.montoya.proxy.RequestFinalInterceptResult;
+import burp.api.montoya.proxy.ResponseInitialInterceptResult;
+import burp.api.montoya.proxy.ResponseFinalInterceptResult;
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
 import org.slf4j.Logger;
@@ -22,7 +22,7 @@ import java.util.Map;
  * Advanced proxy interceptor for SSL/TLS traffic analysis using Montoya API 2023.12.1
  * Provides comprehensive traffic monitoring, security analysis, and real-time interception
  */
-public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyResponseHandler {
+public class AdvancedProxyInterceptor implements ProxyHttpRequestHandler, ProxyHttpResponseHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(AdvancedProxyInterceptor.class);
     
@@ -48,7 +48,7 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
     }
     
     @Override
-    public ProxyRequestReceivedAction handleRequestReceived(InterceptedRequest interceptedRequest) {
+    public RequestInitialInterceptResult handleRequestReceived(InterceptedHttpRequest interceptedRequest) {
         // Log the received request and continue
         if (api != null) {
             api.logging().logToOutput(String.format(
@@ -56,11 +56,11 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
                 interceptedRequest.url()
             ));
         }
-        return ProxyRequestReceivedAction.continueWith(interceptedRequest);
+        return RequestInitialInterceptResult.continueWith(interceptedRequest);
     }
     
     @Override
-    public ProxyRequestToBeSentAction handleRequestToBeSent(InterceptedRequest interceptedRequest) {
+    public RequestFinalInterceptResult handleRequestToBeSent(InterceptedHttpRequest interceptedRequest) {
         var requestId = requestCounter.incrementAndGet();
         
         if (api != null) {
@@ -98,7 +98,7 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
                 }
             }
             
-            return ProxyRequestToBeSentAction.continueWith(interceptedRequest);
+            return RequestFinalInterceptResult.continueWith(interceptedRequest);
             
         } catch (Exception e) {
             logger.error("Request processing failed for {}: {}", interceptedRequest.url(), e.getMessage(), e);
@@ -108,21 +108,21 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
                     interceptedRequest.url(), e.getMessage()
                 ));
             }
-            return ProxyRequestToBeSentAction.continueWith(interceptedRequest);
+            return RequestFinalInterceptResult.continueWith(interceptedRequest);
         }
     }
     
     @Override
-    public ProxyResponseToBeSentAction handleResponseToBeSent(InterceptedResponse interceptedResponse) {
+    public ResponseFinalInterceptResult handleResponseToBeSent(InterceptedHttpResponse interceptedResponse) {
         // Log the response to be sent and continue
         if (api != null) {
             api.logging().logToOutput("[SSL-INTERCEPT] Response to be sent");
         }
-        return ProxyResponseToBeSentAction.continueWith(interceptedResponse);
+        return ResponseFinalInterceptResult.continueWith(interceptedResponse);
     }
     
     @Override
-    public ProxyResponseReceivedAction handleResponseReceived(InterceptedResponse interceptedResponse) {
+    public ResponseInitialInterceptResult handleResponseReceived(InterceptedHttpResponse interceptedResponse) {
         try {
             if (api != null) {
                 api.logging().logToOutput("[SSL-INTERCEPT] Processing response");
@@ -140,7 +140,7 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
                 logger.info("Sensitive data detected in response");
             }
             
-            return ProxyResponseReceivedAction.continueWith(interceptedResponse);
+            return ResponseInitialInterceptResult.continueWith(interceptedResponse);
             
         } catch (Exception e) {
             logger.error("Response processing failed: {}", e.getMessage(), e);
@@ -149,7 +149,7 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
                     "[ERROR] Response processing failed: %s", e.getMessage()
                 ));
             }
-            return ProxyResponseReceivedAction.continueWith(interceptedResponse);
+            return ResponseInitialInterceptResult.continueWith(interceptedResponse);
         }
     }
     

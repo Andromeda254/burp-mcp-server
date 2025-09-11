@@ -10,12 +10,12 @@ version = '1.0.0'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
     
-    // Enable preview features for cutting-edge Java 17+ capabilities
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    // Enable preview features for cutting-edge Java 21 capabilities
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
     
     withSourcesJar()
     withJavadocJar()
@@ -42,8 +42,8 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.9'
     implementation 'ch.qos.logback:logback-classic:1.4.11'
     
-    // HTTP server for MCP
-    implementation 'com.sun.net.httpserver:http:20070405'
+    // HTTP server for MCP (built into JDK)
+    // Note: com.sun.net.httpserver is included in the JDK since Java 6
     
     // Testing
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'

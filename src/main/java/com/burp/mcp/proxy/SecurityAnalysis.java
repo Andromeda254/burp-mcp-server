@@ -268,7 +268,7 @@ class SSLAnalysis {
     private final List<String> errors = new ArrayList<>();
     private final Map<String, Object> properties = new HashMap<>();
     
-    public void analyzeHeaders(List<burp.api.montoya.http.message.HttpHeader> headers) {
+    public void analyzeHeaders(List<burp.api.montoya.http.message.headers.HttpHeader> headers) {
         // Analyze SSL/TLS related headers
         for (var header : headers) {
             var name = header.name().toLowerCase();
