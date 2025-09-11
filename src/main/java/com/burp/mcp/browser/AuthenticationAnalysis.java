@@ -39,8 +39,8 @@ class AuthDetector {
         this.api = api;
     }
     
-    public AuthenticationState analyzeAuthenticationState(HttpResponse response, HttpRequest request) {
-        var state = new AuthenticationState();
+    public LoginSequenceSupport.AuthenticationState analyzeAuthenticationState(HttpResponse response, HttpRequest request) {
+        var state = new LoginSequenceSupport.AuthenticationState();
         
         try {
             var body = response.bodyToString().toLowerCase();
@@ -88,7 +88,7 @@ class PatternAnalyzer {
         this.api = api;
     }
     
-    public Map<String, Object> validateSequence(LoginSequence sequence) {
+    public Map<String, Object> validateSequence(LoginSequenceSupport.LoginSequence sequence) {
         var validation = new HashMap<String, Object>();
         
         try {
@@ -107,25 +107,25 @@ class PatternAnalyzer {
         return validation;
     }
     
-    private boolean hasPasswordStep(LoginSequence sequence) {
+    private boolean hasPasswordStep(LoginSequenceSupport.LoginSequence sequence) {
         return sequence.getSteps().stream()
             .anyMatch(step -> step.getFormData().keySet().stream()
                 .anyMatch(key -> key.toLowerCase().contains("password")));
     }
     
-    private boolean hasCsrfProtection(LoginSequence sequence) {
+    private boolean hasCsrfProtection(LoginSequenceSupport.LoginSequence sequence) {
         return sequence.getSteps().stream()
             .anyMatch(step -> step.getFormData().keySet().stream()
                 .anyMatch(key -> key.toLowerCase().contains("csrf") || 
                                key.toLowerCase().contains("token")));
     }
     
-    private boolean usesHttps(LoginSequence sequence) {
+    private boolean usesHttps(LoginSequenceSupport.LoginSequence sequence) {
         return sequence.getSteps().stream()
             .allMatch(step -> step.getUrl().startsWith("https://"));
     }
     
-    private double calculateConfidenceScore(LoginSequence sequence) {
+    private double calculateConfidenceScore(LoginSequenceSupport.LoginSequence sequence) {
         double score = 50.0; // Base score
         
         if (hasPasswordStep(sequence)) score += 20;
@@ -142,19 +142,19 @@ class PatternAnalyzer {
  */
 class SequenceBuilder {
     private final MontoyaApi api;
-    private LoginSequence currentSequence;
+    private LoginSequenceSupport.LoginSequence currentSequence;
     
     public SequenceBuilder(MontoyaApi api) {
         this.api = api;
     }
     
     public void startNewSequence(String targetUrl) {
-        this.currentSequence = new LoginSequence(targetUrl);
+        this.currentSequence = new LoginSequenceSupport.LoginSequence(targetUrl);
     }
     
     public void addRequestStep(HttpRequest request) {
         if (currentSequence != null) {
-            var step = new LoginStep(request.url(), request.method(), "REQUEST");
+            var step = new LoginSequenceSupport.LoginStep(request.url(), request.method(), "REQUEST");
             
             // Extract form data if POST request
             if ("POST".equals(request.method())) {
@@ -175,7 +175,7 @@ class SequenceBuilder {
         }
     }
     
-    public void updateSequenceWithAuthResult(AuthenticationState authState) {
+    public void updateSequenceWithAuthResult(LoginSequenceSupport.AuthenticationState authState) {
         if (currentSequence != null && authState.hasStateChange()) {
             currentSequence.addMetadata("auth_state", authState.getCurrentState());
             
@@ -185,7 +185,7 @@ class SequenceBuilder {
         }
     }
     
-    public LoginSequence getCurrentSequence() {
+    public LoginSequenceSupport.LoginSequence getCurrentSequence() {
         return currentSequence;
     }
 }
@@ -221,21 +221,21 @@ abstract class RecordingSession {
     protected final String targetUrl;
     protected final AILoginSequenceRecorder.LoginRecordingConfig config;
     protected final MontoyaApi api;
-    protected final LoginSequence sequence;
+    protected final LoginSequenceSupport.LoginSequence sequence;
     
     public RecordingSession(String targetUrl, AILoginSequenceRecorder.LoginRecordingConfig config, 
                            MontoyaApi api) {
         this.targetUrl = targetUrl;
         this.config = config;
         this.api = api;
-        this.sequence = new LoginSequence(targetUrl);
+        this.sequence = new LoginSequenceSupport.LoginSequence(targetUrl);
     }
     
-    public LoginSequence getRecordedSequence() {
+    public LoginSequenceSupport.LoginSequence getRecordedSequence() {
         return sequence;
     }
     
-    public abstract LoginSequence startRecording();
+    public abstract LoginSequenceSupport.LoginSequence startRecording();
 }
 
 /**
@@ -254,7 +254,7 @@ class InteractiveRecordingSession extends RecordingSession {
     }
     
     @Override
-    public LoginSequence startRecording() {
+    public LoginSequenceSupport.LoginSequence startRecording() {
         try {
             if (api != null) {
                 api.logging().logToOutput("[INTERACTIVE-RECORDING] Starting interactive session");
@@ -264,10 +264,10 @@ class InteractiveRecordingSession extends RecordingSession {
             Thread.sleep(1000);
             
             // Add mock login steps
-            var step1 = new LoginStep(targetUrl + "/login", "GET", "NAVIGATE");
+            var step1 = new LoginSequenceSupport.LoginStep(targetUrl + "/login", "GET", "NAVIGATE");
             sequence.addStep(step1);
             
-            var step2 = new LoginStep(targetUrl + "/login", "POST", "SUBMIT_CREDENTIALS");
+            var step2 = new LoginSequenceSupport.LoginStep(targetUrl + "/login", "POST", "SUBMIT_CREDENTIALS");
             step2.addFormData("username", "user@example.com");
             step2.addFormData("password", "********");
             sequence.addStep(step2);
@@ -290,7 +290,7 @@ class InteractiveRecordingSession extends RecordingSession {
 class AutomaticRecordingSession extends RecordingSession {
     
     public AutomaticRecordingSession(String targetUrl, AILoginSequenceRecorder.LoginRecordingConfig config, 
-                                    MontoyaApi api, LoginSequence existingSequence) {
+                                    MontoyaApi api, LoginSequenceSupport.LoginSequence existingSequence) {
         super(targetUrl, config, api);
         if (existingSequence != null) {
             // Copy existing sequence data
@@ -301,7 +301,7 @@ class AutomaticRecordingSession extends RecordingSession {
     }
     
     @Override
-    public LoginSequence startRecording() {
+    public LoginSequenceSupport.LoginSequence startRecording() {
         try {
             if (api != null) {
                 api.logging().logToOutput("[AUTO-RECORDING] Starting automatic session");
@@ -311,7 +311,7 @@ class AutomaticRecordingSession extends RecordingSession {
             // In real implementation, this would monitor actual traffic
             if (sequence.getSteps().isEmpty()) {
                 // Add default steps if none captured
-                var step = new LoginStep(targetUrl, "GET", "AUTO_DETECTED");
+                var step = new LoginSequenceSupport.LoginStep(targetUrl, "GET", "AUTO_DETECTED");
                 sequence.addStep(step);
             }
             

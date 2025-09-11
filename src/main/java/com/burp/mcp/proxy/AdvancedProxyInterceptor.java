@@ -244,6 +244,8 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
         private boolean modifyRequests = false;
         private boolean modifyResponses = false;
         private java.util.Set<String> targetDomains = new java.util.HashSet<>();
+        private boolean enableAdvancedAnalysis = true;
+        private boolean enableThreatDetection = true;
         
         public boolean isModifyRequests() { return modifyRequests; }
         public void setModifyRequests(boolean modifyRequests) { this.modifyRequests = modifyRequests; }
@@ -253,6 +255,12 @@ public class AdvancedProxyInterceptor implements ProxyRequestHandler, ProxyRespo
         
         public java.util.Set<String> getTargetDomains() { return targetDomains; }
         public void setTargetDomains(java.util.Set<String> targetDomains) { this.targetDomains = targetDomains; }
+        
+        public boolean isEnableAdvancedAnalysis() { return enableAdvancedAnalysis; }
+        public void setEnableAdvancedAnalysis(boolean enableAdvancedAnalysis) { this.enableAdvancedAnalysis = enableAdvancedAnalysis; }
+        
+        public boolean isEnableThreatDetection() { return enableThreatDetection; }
+        public void setEnableThreatDetection(boolean enableThreatDetection) { this.enableThreatDetection = enableThreatDetection; }
     }
     
     public static class InterceptionSession {

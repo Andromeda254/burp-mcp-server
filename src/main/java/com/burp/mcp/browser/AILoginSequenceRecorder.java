@@ -138,7 +138,7 @@ public class AILoginSequenceRecorder {
         }
     }
     
-    public LoginSequence recordInteractiveLogin(String targetUrl, LoginRecordingConfig config) {
+    public LoginSequenceSupport.LoginSequence recordInteractiveLogin(String targetUrl, LoginRecordingConfig config) {
         try {
             if (api != null) {
                 api.logging().logToOutput(String.format(
@@ -198,7 +198,7 @@ public class AILoginSequenceRecorder {
         }
     }
     
-    public LoginSequence recordAutomaticLogin(String targetUrl, LoginRecordingConfig config) {
+    public LoginSequenceSupport.LoginSequence recordAutomaticLogin(String targetUrl, LoginRecordingConfig config) {
         try {
             if (api != null) {
                 api.logging().logToOutput(String.format(
@@ -207,7 +207,7 @@ public class AILoginSequenceRecorder {
                 ));
             }
             
-            var sequence = new LoginSequence(targetUrl);
+            var sequence = new LoginSequenceSupport.LoginSequence(targetUrl);
             sequence.setRecordingMethod("automatic");
             
             // Start monitoring traffic to the target URL
@@ -251,8 +251,8 @@ public class AILoginSequenceRecorder {
         }
     }
     
-    private LoginSequenceValidation validateLoginSequence(LoginSequence sequence) {
-        var validation = new LoginSequenceValidation();
+    private LoginSequenceSupport.LoginSequenceValidation validateLoginSequence(LoginSequenceSupport.LoginSequence sequence) {
+        var validation = new LoginSequenceSupport.LoginSequenceValidation();
         
         try {
             // AI-powered sequence validation
@@ -283,7 +283,7 @@ public class AILoginSequenceRecorder {
             if (api != null) {
                 api.logging().logToError("[ERROR] Login sequence validation failed: " + e.getMessage());
             }
-            return LoginSequenceValidation.failed(e.getMessage());
+            return LoginSequenceSupport.LoginSequenceValidation.failed(e.getMessage());
         }
     }
     
@@ -333,13 +333,13 @@ public class AILoginSequenceRecorder {
         // Implementation would store this data for later use
     }
     
-    private void storeLoginSequence(LoginSequence sequence) {
+    private void storeLoginSequence(LoginSequenceSupport.LoginSequence sequence) {
         logger.info("Storing completed login sequence for: {}", sequence.getTargetUrl());
         // Implementation would persist the sequence
     }
     
-    private ReplayResult testSequenceReplay(LoginSequence sequence) {
-        var result = new ReplayResult();
+    private LoginSequenceSupport.ReplayResult testSequenceReplay(LoginSequenceSupport.LoginSequence sequence) {
+        var result = new LoginSequenceSupport.ReplayResult();
         
         try {
             // Mock replay test - in real implementation would actually replay
@@ -354,8 +354,8 @@ public class AILoginSequenceRecorder {
         return result;
     }
     
-    private SecurityAnalysisResult analyzeSequenceSecurity(LoginSequence sequence) {
-        var analysis = new SecurityAnalysisResult();
+    private LoginSequenceSupport.SecurityAnalysisResult analyzeSequenceSecurity(LoginSequenceSupport.LoginSequence sequence) {
+        var analysis = new LoginSequenceSupport.SecurityAnalysisResult();
         
         try {
             // Analyze sequence for security issues
@@ -413,7 +413,7 @@ public class AILoginSequenceRecorder {
         return false;
     }
     
-    private double calculateValidationScore(LoginSequenceValidation validation) {
+    private double calculateValidationScore(LoginSequenceSupport.LoginSequenceValidation validation) {
         double score = 50.0; // Base score
         
         if (validation.getAiValidation() != null) {
@@ -489,9 +489,9 @@ public class AILoginSequenceRecorder {
             this.aiGuidanceEnabled = true;
         }
         
-        public LoginSequence startRecording() {
+        public LoginSequenceSupport.LoginSequence startRecording() {
             active = true;
-            var sequence = new LoginSequence(targetUrl);
+            var sequence = new LoginSequenceSupport.LoginSequence(targetUrl);
             sequence.setRecordingMethod("interactive");
             
             // Simulate interactive recording process
@@ -499,18 +499,18 @@ public class AILoginSequenceRecorder {
                 Thread.sleep(5000); // Simulate user interaction time
                 
                 // Add mock steps
-                var step1 = new LoginStep(targetUrl, "GET", "NAVIGATE");
+                var step1 = new LoginSequenceSupport.LoginStep(targetUrl, "GET", "NAVIGATE");
                 sequence.addStep(step1);
                 
-                var step2 = new LoginStep(targetUrl, "POST", "FILL_FIELD");
+                var step2 = new LoginSequenceSupport.LoginStep(targetUrl, "POST", "FILL_FIELD");
                 step2.addFormData("username", "[USERNAME]");
                 sequence.addStep(step2);
                 
-                var step3 = new LoginStep(targetUrl, "POST", "FILL_FIELD");
+                var step3 = new LoginSequenceSupport.LoginStep(targetUrl, "POST", "FILL_FIELD");
                 step3.addFormData("password", "[PASSWORD]");
                 sequence.addStep(step3);
                 
-                var step4 = new LoginStep(targetUrl, "POST", "SUBMIT_FORM");
+                var step4 = new LoginSequenceSupport.LoginStep(targetUrl, "POST", "SUBMIT_FORM");
                 step4.addFormData("form", "login_form");
                 sequence.addStep(step4);
                 
@@ -543,10 +543,10 @@ public class AILoginSequenceRecorder {
         private final String targetUrl;
         private final LoginRecordingConfig config;
         private final MontoyaApi api;
-        private final LoginSequence sequence;
+        private final LoginSequenceSupport.LoginSequence sequence;
         private boolean active = true;
         
-        public AutomaticRecordingSession(String targetUrl, LoginRecordingConfig config, MontoyaApi api, LoginSequence sequence) {
+        public AutomaticRecordingSession(String targetUrl, LoginRecordingConfig config, MontoyaApi api, LoginSequenceSupport.LoginSequence sequence) {
             this.sessionId = UUID.randomUUID().toString();
             this.targetUrl = targetUrl;
             this.config = config;
@@ -554,7 +554,7 @@ public class AILoginSequenceRecorder {
             this.sequence = sequence;
         }
         
-        public LoginSequence getRecordedSequence() {
+        public LoginSequenceSupport.LoginSequence getRecordedSequence() {
             return sequence;
         }
         

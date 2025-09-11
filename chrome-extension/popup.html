@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BurpSuite MCP Security Analyzer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 16px;
+            width: 320px;
+            min-height: 400px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .version {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4757;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.connected {
+            background: #2ed573;
+        }
+        
+        .status-dot.connecting {
+            background: #ffa502;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn.primary {
+            background: #2ed573;
+        }
+        
+        .btn.primary:hover {
+            background: #1dd065;
+        }
+        
+        .btn.danger {
+            background: #ff4757;
+        }
+        
+        .btn.danger:hover {
+            background: #ff3742;
+        }
+        
+        .stats {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .stats-title {
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+        
+        .recording-indicator {
+            display: none;
+            background: #ff4757;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .recording-indicator.active {
+            display: block;
+        }
+        
+        .recording-time {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 11px;
+            opacity: 0.6;
+        }
+        
+        .options-link {
+            color: #fff;
+            text-decoration: none;
+            opacity: 0.8;
+        }
+        
+        .options-link:hover {
+            opacity: 1;
+        }
+        
+        .error-message {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid #ff4757;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .form-analysis {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+        
+        .form-count {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .security-findings {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .security-findings.show {
+            display: block;
+        }
+        
+        .finding-item {
+            margin-bottom: 5px;
+            padding-left: 15px;
+            position: relative;
+        }
+        
+        .finding-item:before {
+            content: "⚠️";
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">BurpSuite MCP</div>
+        <div class="version">Security Analyzer v1.0.0</div>
+    </div>
+    
+    <div class="connection-status">
+        <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+        <button class="btn" id="reconnectBtn" style="padding: 4px 8px; font-size: 11px;">Reconnect</button>
+    </div>
+    
+    <div class="error-message" id="errorMessage"></div>
+    
+    <div class="loading" id="loadingIndicator">
+        <div class="spinner"></div>
+        <div>Loading...</div>
+    </div>
+    
+    <div class="recording-indicator" id="recordingIndicator">
+        <div>🔴 RECORDING</div>
+        <div class="recording-time" id="recordingTime">00:00</div>
+    </div>
+    
+    <div class="action-buttons">
+        <button class="btn" id="captureScreenshotBtn">
+            📸 Capture Screenshot
+        </button>
+        
+        <button class="btn" id="analyzeFormsBtn">
+            📝 Analyze Forms
+        </button>
+        
+        <button class="btn primary" id="startRecordingBtn">
+            🎬 Start Recording
+        </button>
+        
+        <button class="btn danger" id="stopRecordingBtn" style="display: none;">
+            ⏹️ Stop Recording
+        </button>
+        
+        <button class="btn" id="openBurpBtn">
+            🔧 Open BurpSuite
+        </button>
+    </div>
+    
+    <div class="stats" id="statsSection">
+        <div class="stats-title">Session Statistics</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value" id="formsAnalyzed">0</div>
+                <div class="stat-label">Forms Found</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="interactionsRecorded">0</div>
+                <div class="stat-label">Interactions</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="screenshotsTaken">0</div>
+                <div class="stat-label">Screenshots</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="securityFindings">0</div>
+                <div class="stat-label">Findings</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-analysis" id="formAnalysis" style="display: none;">
+        <div class="form-count" id="formCount">0 forms detected</div>
+        <div id="formDetails"></div>
+    </div>
+    
+    <div class="security-findings" id="securityFindings">
+        <div style="font-weight: bold; margin-bottom: 8px;">🔒 Security Findings:</div>
+        <div id="findingsList"></div>
+    </div>
+    
+    <div class="footer">
+        <a href="#" class="options-link" id="optionsLink">Options</a> | 
+        <a href="#" class="options-link" id="helpLink">Help</a>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

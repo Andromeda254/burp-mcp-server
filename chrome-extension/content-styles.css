@@ -1,0 +1,373 @@
+/**
+ * BurpSuite MCP Security Analyzer - Content Styles
+ * Styles for indicators and UI elements injected into web pages
+ */
+
+/* Base indicator styles */
+.burp-mcp-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2147483647;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Connection status indicators */
+.burp-mcp-connected {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.burp-mcp-disconnected {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* Recording indicator */
+.burp-mcp-recording {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-color: rgba(239, 68, 68, 0.3);
+    animation: recording-pulse 2s infinite;
+    top: 70px; /* Position below connection indicator */
+}
+
+@keyframes recording-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* Form security highlights */
+.burp-mcp-form-highlight {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.burp-mcp-form-warning {
+    outline: 2px solid #f59e0b !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.burp-mcp-form-danger {
+    outline: 2px solid #ef4444 !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Field analysis tooltips */
+.burp-mcp-tooltip {
+    position: absolute;
+    z-index: 2147483646;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 250px;
+    word-wrap: break-word;
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.burp-mcp-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid rgba(0, 0, 0, 0.9);
+}
+
+/* Security analysis overlay */
+.burp-mcp-security-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2147483645;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.burp-mcp-security-panel {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    animation: panel-slide-in 0.3s ease;
+}
+
+@keyframes panel-slide-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.burp-mcp-security-panel h2 {
+    margin: 0 0 16px 0;
+    color: #1f2937;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.burp-mcp-security-panel h3 {
+    margin: 16px 0 8px 0;
+    color: #374151;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.burp-mcp-security-item {
+    padding: 8px 12px;
+    margin: 6px 0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.burp-mcp-security-item.high {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+    color: #991b1b;
+}
+
+.burp-mcp-security-item.medium {
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    color: #92400e;
+}
+
+.burp-mcp-security-item.low {
+    background: #f0f9ff;
+    border-left: 4px solid #3b82f6;
+    color: #1e40af;
+}
+
+.burp-mcp-security-item.info {
+    background: #f0fdf4;
+    border-left: 4px solid #10b981;
+    color: #065f46;
+}
+
+/* Close button */
+.burp-mcp-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6b7280;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.burp-mcp-close-btn:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+/* Form field indicators */
+.burp-mcp-field-indicator {
+    position: absolute;
+    right: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.burp-mcp-field-indicator.secure {
+    background: #10b981;
+    color: white;
+}
+
+.burp-mcp-field-indicator.warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.burp-mcp-field-indicator.danger {
+    background: #ef4444;
+    color: white;
+}
+
+/* Animation classes */
+.burp-mcp-fade-in {
+    animation: fade-in 0.3s ease;
+}
+
+.burp-mcp-fade-out {
+    animation: fade-out 0.3s ease;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .burp-mcp-indicator {
+        top: 10px;
+        right: 10px;
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    .burp-mcp-recording {
+        top: 50px;
+    }
+    
+    .burp-mcp-security-panel {
+        margin: 20px;
+        max-width: calc(100% - 40px);
+        padding: 20px;
+    }
+    
+    .burp-mcp-security-panel h2 {
+        font-size: 18px;
+    }
+    
+    .burp-mcp-security-item {
+        font-size: 13px;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .burp-mcp-indicator {
+        border-width: 2px;
+        font-weight: 600;
+    }
+    
+    .burp-mcp-form-highlight {
+        outline-width: 3px;
+    }
+    
+    .burp-mcp-form-warning {
+        outline-width: 3px;
+    }
+    
+    .burp-mcp-form-danger {
+        outline-width: 3px;
+    }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .burp-mcp-indicator {
+        transition: none;
+    }
+    
+    .burp-mcp-recording {
+        animation: none;
+    }
+    
+    .burp-mcp-security-panel {
+        animation: none;
+    }
+    
+    .burp-mcp-fade-in,
+    .burp-mcp-fade-out {
+        animation: none;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .burp-mcp-security-panel {
+        background: #1f2937;
+        color: #f9fafb;
+    }
+    
+    .burp-mcp-security-panel h2 {
+        color: #f9fafb;
+    }
+    
+    .burp-mcp-security-panel h3 {
+        color: #e5e7eb;
+    }
+    
+    .burp-mcp-security-item.high {
+        background: rgba(239, 68, 68, 0.1);
+        color: #fca5a5;
+    }
+    
+    .burp-mcp-security-item.medium {
+        background: rgba(245, 158, 11, 0.1);
+        color: #fcd34d;
+    }
+    
+    .burp-mcp-security-item.low {
+        background: rgba(59, 130, 246, 0.1);
+        color: #93c5fd;
+    }
+    
+    .burp-mcp-security-item.info {
+        background: rgba(16, 185, 129, 0.1);
+        color: #6ee7b7;
+    }
+    
+    .burp-mcp-close-btn {
+        color: #9ca3af;
+    }
+    
+    .burp-mcp-close-btn:hover {
+        background: #374151;
+        color: #d1d5db;
+    }
+}

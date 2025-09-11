@@ -45,6 +45,20 @@ dependencies {
     // HTTP server for MCP
     implementation 'com.sun.net.httpserver:http:20070405'
     
+    // WebDriver and Browser Automation
+    implementation 'org.seleniumhq.selenium:selenium-java:4.15.0'
+    implementation 'io.github.bonigarcia:webdrivermanager:5.6.2'
+    implementation 'org.seleniumhq.selenium:selenium-chrome-driver:4.15.0'
+    implementation 'org.seleniumhq.selenium:selenium-firefox-driver:4.15.0'
+    implementation 'org.seleniumhq.selenium:selenium-edge-driver:4.15.0'
+    
+    // Image processing for screenshots
+    implementation 'org.apache.commons:commons-imaging:1.0.0-alpha5'
+    
+    // Additional utilities for browser automation
+    implementation 'org.apache.commons:commons-lang3:3.13.0'
+    implementation 'commons-io:commons-io:2.11.0'
+    
     // Testing
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.mockito:mockito-core:5.6.0'
